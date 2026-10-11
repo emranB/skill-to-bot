@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skill-to-bot.local/contracts/skill.schema.json",
+  "title": "skill-to-bot skill v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "object",
+    "frame",
+    "units",
+    "start",
+    "goal",
+    "approach_height",
+    "events",
+    "calibration",
+    "source"
+  ],
+  "properties": {
+    "version": {
+      "const": "1.0"
+    },
+    "object": {
+      "const": "can",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "frame": {
+      "const": "world"
+    },
+    "units": {
+      "const": "meters"
+    },
+    "start": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": -2,
+        "maximum": 2
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "goal": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": -2,
+        "maximum": 2
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "approach_height": {
+      "type": "number",
+      "minimum": 0.04,
+      "maximum": 0.25
+    },
+    "events": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "time"
+          ],
+          "properties": {
+            "type": {
+              "const": "grasp"
+            },
+            "time": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 120
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "time"
+          ],
+          "properties": {
+            "type": {
+              "const": "transport"
+            },
+            "time": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 120
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "time"
+          ],
+          "properties": {
+            "type": {
+              "const": "place"
+            },
+            "time": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 120
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "time"
+          ],
+          "properties": {
+            "type": {
+              "const": "release"
+            },
+            "time": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 120
+            }
+          }
+        }
+      ],
+      "items": false
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "workspace_span",
+        "plane",
+        "roi"
+      ],
+      "properties": {
+        "method": {
+          "const": "operator_planar"
+        },
+        "workspace_span": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 0.5
+        },
+        "plane": {
+          "const": "front"
+        },
+        "roi": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "video",
+        "confidence",
+        "samples"
+      ],
+      "properties": {
+        "video": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "samples": {
+          "type": "integer",
+          "minimum": 4
+        }
+      }
+    }
+  }
+}

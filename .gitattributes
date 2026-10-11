@@ -1,0 +1,7 @@
+# Purpose: Keep executable scripts and source files portable between Windows and Linux.
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.mp4 binary

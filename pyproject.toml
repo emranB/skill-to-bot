@@ -1,0 +1,12 @@
+# Purpose: Define shared Python formatting and test discovery conventions.
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: requires the running Docker application"]

@@ -1,0 +1,70 @@
+# Purpose: Wire the four isolated skill-to-bot runtime containers.
+name: skill-to-bot
+services:
+  perception:
+    build:
+      context: .
+      dockerfile: services/perception/Dockerfile
+    environment:
+      DATA_DIR: /data
+      CONTRACTS_DIR: /app/contracts
+    volumes:
+      - ./data/demonstrations:/data/demonstrations:ro
+    ports:
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  simulation:
+    image: skill-to-bot-simulation
+    build:
+      context: .
+      dockerfile: services/simulation/Dockerfile
+    environment:
+      DATA_DIR: /data
+      CONTRACTS_DIR: /app/contracts
+      MUJOCO_GL: osmesa
+      PYOPENGL_PLATFORM: osmesa
+    volumes:
+      - ./data/runs:/data/runs
+    ports:
+      - "127.0.0.1:8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    environment:
+      DATA_DIR: /data
+      PERCEPTION_URL: http://perception:8001
+      CONTRACTS_DIR: /app/contracts
+      SIMULATION_URL: http://simulation:8002
+      WEB_ORIGINS: "http://localhost:${WEB_PORT:-5173},http://127.0.0.1:${WEB_PORT:-5173}"
+    volumes:
+      - ./data/demonstrations:/data/demonstrations
+      - ./data/runs:/data/runs
+    ports:
+      - "127.0.0.1:${ORCHESTRATOR_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:${WEB_PORT:-5173}:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:5173/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6

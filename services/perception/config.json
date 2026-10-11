@@ -1,0 +1,15 @@
+{
+  "max_bytes": 104857600,
+  "max_seconds": 60,
+  "tracking_width": 640,
+  "min_texture": 8,
+  "max_lost_frames": 5,
+  "min_samples": 20,
+  "motion_threshold": 0.025,
+  "lift_threshold": 0.035,
+  "settle_threshold": 0.025,
+  "settle_frames": 8,
+  "placement_vertical_tolerance": 0.12,
+  "min_transfer_distance": 0.025,
+  "object_center_height": 0.95
+}

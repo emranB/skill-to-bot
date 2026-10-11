@@ -1,0 +1,12 @@
+(define (problem LIBERO_Tabletop_Manipulation)
+  (:domain robosuite)
+  (:language Pick up the can and place it on the table)
+  (:regions
+    (start_region (:target main_table) (:ranges ((-0.07 -0.07 0.07 0.07))))
+    (goal_region (:target main_table) (:ranges ((-0.08 0.05 0.08 0.25)))))
+  (:fixtures main_table - table)
+  (:objects alphabet_soup_1 - alphabet_soup)
+  (:obj_of_interest alphabet_soup_1)
+  (:init (On alphabet_soup_1 main_table_start_region))
+  (:goal (And (On alphabet_soup_1 main_table_goal_region)))
+)

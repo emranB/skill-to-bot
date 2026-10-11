@@ -1,0 +1,9 @@
+{
+  "request_timeout": 180,
+  "simulation_timeout": 300,
+  "health_timeout": 2,
+  "poll_seconds": 0.5,
+  "status_seconds": 1,
+  "max_upload_bytes": 104857600,
+  "max_video_seconds": 60
+}
