@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity,
+  Camera,
   ArrowRight,
   CircleAlert,
   LoaderCircle,
@@ -13,12 +14,14 @@ import {
 } from 'lucide-react';
 import config from '../config.json';
 import RunStatus, { type Run } from './RunStatus';
+import LiveCamera, { type Roi } from './LiveCamera';
 
 type Demo = { name: string; bytes: number; url: string };
 type Services = Record<string, { status: string; detail?: string }>;
-type Roi = [number, number, number, number];
 
 function displayName(name: string) {
+  const live = name.match(/^live_demo_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+  if (live) return `Live demo ${live[1]}-${live[2]}-${live[3]} ${live[4]}:${live[5]} UTC`;
   if (/^[a-f0-9]{32}\.mp4$/.test(name)) return `Uploaded video ${name.slice(0, 6)}`;
   return name.replace(/^pop-can-pick-up-(\d+)\.mp4$/, 'Can pickup $1');
 }
@@ -47,11 +50,15 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
   const [runId, setRunId] = useState('');
+  const [camera, setCamera] = useState(false);
+  const [cameraLocked, setCameraLocked] = useState(false);
   const drag = useRef<[number, number] | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const run =
-    runs.find((item) => item.run_id === runId) || runs.find((item) => item.video === selected);
+  const run = camera
+    ? undefined
+    : runs.find((item) => item.run_id === runId) || runs.find((item) => item.video === selected);
   const busy = runs.some((item) => item.status === 'running');
+  const locked = busy || pending || cameraLocked;
   const available =
     services.perception?.status === 'ready' && services.simulation?.status === 'ready';
   const validMapping =
@@ -118,7 +125,8 @@ export default function App() {
   }, [refresh]);
 
   function choose(name: string) {
-    if (busy) return;
+    if (locked) return;
+    setCamera(false);
     setRunId('');
     setSelected(name);
     setConfirmed(false);
@@ -142,7 +150,7 @@ export default function App() {
       if (input.current) input.current.value = '';
     }
   }
-  async function start() {
+  async function start(video = selected) {
     setPending(true);
     setError('');
     try {
@@ -150,7 +158,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          video: selected,
+          video,
           request_id: crypto.randomUUID(),
           calibration: { method: 'operator_planar', plane: 'front', workspace_span: span, roi },
         }),
@@ -160,6 +168,23 @@ export default function App() {
       await refresh();
     } catch (problem) {
       setError((problem as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+  async function saveRecording(clip: Blob) {
+    setPending(true);
+    setError('');
+    const form = new FormData();
+    form.append('file', clip, clip.type.startsWith('video/mp4') ? 'camera.mp4' : 'camera.webm');
+    try {
+      const demo = await api<Demo>('/live-demonstrations', { method: 'POST', body: form });
+      setSelected(demo.name);
+      setRunId('');
+      setMode('video');
+      setConfirmed(true);
+      setCamera(false);
+      await start(demo.name);
     } finally {
       setPending(false);
     }
@@ -218,7 +243,11 @@ export default function App() {
           </button>
           <button
             aria-current={tab === 'history' ? 'page' : undefined}
-            onClick={() => setTab('history')}
+            disabled={cameraLocked}
+            onClick={() => {
+              setCamera(false);
+              setTab('history');
+            }}
           >
             Run history <span>{runs.length}</span>
           </button>
@@ -258,6 +287,7 @@ export default function App() {
                     key={item.run_id}
                     onClick={() => {
                       setRunId(item.run_id);
+                      setCamera(false);
                       setSelected(item.video);
                       setConfirmed(false);
                       setMode('video');
@@ -286,7 +316,7 @@ export default function App() {
                 <button
                   className="secondary"
                   title="Reset simulation"
-                  disabled={busy || pending || services.simulation?.status !== 'ready'}
+                  disabled={locked || services.simulation?.status !== 'ready'}
                   onClick={() => void reset()}
                 >
                   <RotateCcw size={17} />
@@ -295,7 +325,10 @@ export default function App() {
                 <button
                   className={confirmed ? 'primary' : 'confirm-mapping'}
                   disabled={
-                    !selected || (confirmed && !available) || busy || pending || !validMapping
+                    (!selected && !camera) ||
+                    (confirmed && (!available || camera)) ||
+                    locked ||
+                    !validMapping
                   }
                   onClick={() => (confirmed ? void start() : setConfirmed(true))}
                 >
@@ -324,7 +357,7 @@ export default function App() {
                     className="icon-button"
                     title="Upload MP4 video"
                     aria-label="Upload MP4 video"
-                    disabled={pending || busy}
+                    disabled={locked}
                     onClick={() => input.current?.click()}
                   >
                     <Upload size={18} />
@@ -338,11 +371,27 @@ export default function App() {
                   />
                 </div>
                 <div className="demo-list">
+                  <button
+                    className={camera ? 'selected camera-choice' : 'camera-choice'}
+                    disabled={locked}
+                    onClick={() => {
+                      setCamera(true);
+                      setRunId('');
+                      setConfirmed(false);
+                      setError('');
+                    }}
+                  >
+                    <Camera size={22} />
+                    <span>
+                      <strong>Live Camera</strong>
+                      <small>Browser camera</small>
+                    </span>
+                  </button>
                   {demos.map((demo) => (
                     <button
-                      className={selected === demo.name ? 'selected' : ''}
+                      className={!camera && selected === demo.name ? 'selected' : ''}
                       key={demo.name}
-                      disabled={busy}
+                      disabled={locked}
                       onClick={() => choose(demo.name)}
                     >
                       <img
@@ -369,7 +418,7 @@ export default function App() {
                     max="0.5"
                     step="0.01"
                     value={span}
-                    disabled={busy}
+                    disabled={locked}
                     onChange={(event) => {
                       setSpan(Number(event.target.value));
                       setConfirmed(false);
@@ -383,7 +432,7 @@ export default function App() {
                           {name}
                           <input
                             type="number"
-                            disabled={busy}
+                            disabled={locked}
                             min="0"
                             max="100"
                             step="0.1"
@@ -414,16 +463,33 @@ export default function App() {
                         <Video size={17} />
                         Human demonstration
                       </h3>
-                      <div className="segmented">
-                        <button aria-pressed={mode === 'object'} onClick={() => setMode('object')}>
-                          Mapping
-                        </button>
-                        <button aria-pressed={mode === 'video'} onClick={() => setMode('video')}>
-                          Video
-                        </button>
-                      </div>
+                      {!camera && (
+                        <div className="segmented">
+                          <button
+                            aria-pressed={mode === 'object'}
+                            onClick={() => setMode('object')}
+                          >
+                            Mapping
+                          </button>
+                          <button aria-pressed={mode === 'video'} onClick={() => setMode('video')}>
+                            Video
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {selected ? (
+                    {camera ? (
+                      <LiveCamera
+                        roi={roi}
+                        confirmed={confirmed}
+                        disabled={busy || pending || !available}
+                        onLock={setCameraLocked}
+                        onMapping={(value) => {
+                          setRoi(value);
+                          setConfirmed(false);
+                        }}
+                        onSave={saveRecording}
+                      />
+                    ) : selected ? (
                       mode === 'video' ? (
                         <video
                           key={selected}
@@ -477,7 +543,11 @@ export default function App() {
                     )}
                     <div className="media-footer">
                       <span title={selected}>
-                        {selected ? displayName(selected) : 'Demonstration'}
+                        {camera
+                          ? 'Live Camera'
+                          : selected
+                            ? displayName(selected)
+                            : 'Demonstration'}
                       </span>
                       <span>Source</span>
                     </div>

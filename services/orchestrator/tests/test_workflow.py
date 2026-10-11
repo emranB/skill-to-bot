@@ -59,18 +59,24 @@ def test_success_and_idempotency(tmp_path):
     asyncio.run(check())
 
 
-def test_dependency_failure_and_restart(tmp_path):
+@pytest.mark.parametrize("simulation_timeout", [False, True])
+def test_dependency_failure_and_restart(tmp_path, simulation_timeout):
     async def check():
         workflow = Workflow(tmp_path, CONFIG, "http://perception", "http://simulation")
         await workflow.client.aclose()
 
         def unavailable(request):
+            if simulation_timeout and request.url.path == "/process":
+                return httpx.Response(
+                    200, json={"skill": SKILL, "observations": [], "limitations": []}
+                )
             raise httpx.ReadTimeout("Perception timeout", request=request)
 
         workflow.client = httpx.AsyncClient(transport=httpx.MockTransport(unavailable))
         run = await workflow.start("fixture.mp4", SKILL["calibration"], "timeout")
         await asyncio.gather(*workflow.tasks)
         assert run["status"] == "failed" and "timeout" in run["error"]
+        assert ("unknown" in run["error"]) == simulation_timeout
         run["status"] = "running"
         workflow.save(run)
         await workflow.close()

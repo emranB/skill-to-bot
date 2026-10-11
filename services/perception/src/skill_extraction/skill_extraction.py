@@ -95,12 +95,19 @@ def version():
 def process(request: dict):
     try:
         video = request["video"]
-        if Path(video).name != video or Path(video).suffix.lower() != ".mp4":
+        if (
+            Path(video).name != video
+            or "/" in video
+            or "\\" in video
+            or Path(video).suffix.lower() != ".mp4"
+        ):
             raise ValueError("Use a valid MP4 demonstration name.")
+        directory = "live_demos" if video.startswith("live_demo_") else "demonstrations"
+        path = (DATA / directory / video).resolve()
+        if path.parent != (DATA / directory).resolve():
+            raise ValueError("Demonstration must stay inside its data directory.")
         calibration = request["calibration"]
-        samples = track_object(
-            read_video(DATA / "demonstrations" / video, CONFIG), calibration["roi"], CONFIG
-        )
+        samples = track_object(read_video(path, CONFIG), calibration["roi"], CONFIG)
         skill = extract_skill(samples, calibration, video, CONFIG)
         return {
             "skill": skill,

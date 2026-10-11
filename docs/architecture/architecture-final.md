@@ -171,6 +171,7 @@ skill-to-bot/
 │
 └── data/
     ├── demonstrations/
+    ├── live_demos/               # Local camera recordings
     ├── runs/
     ├── fixtures/
     └── exports/

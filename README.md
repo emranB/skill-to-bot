@@ -38,7 +38,15 @@ The web application is at [localhost:5173](http://localhost:5173). `bash run.sh`
 
 The controlled MVP uses a fixed front-camera video and an operator-selected object rectangle plus workspace span. Check these inputs, click the yellow **Confirm Mapping** action, then **Run Demo**. Editing the mapping or choosing another video clears confirmation. Run status shows the current robot phase and inline Logs, Skill, and Observations tabs. Grasp and release events are motion estimates; camera depth is not recovered. The simulation verifies physical lift, placement, and release independently.
 
+## Live Camera
+
+For camera capture, select **Live Camera**, allow camera permission, select the can rectangle and workspace span, then **Confirm Mapping**. **Start Recording** and **Stop Recording** control capture in the human demonstration view. Stopping opens a Yes/No prompt: **No** discards the unsaved clip and returns to the live feed; **Yes** saves it first, then starts the full pipeline automatically. A saved clip remains available if processing or execution fails.
+
+Camera capture is video-only and needs localhost or HTTPS plus browser camera/MediaRecorder support. Recordings stop automatically at 59 seconds to stay within the 60-second processing limit. Nothing is uploaded before Yes. The orchestrator normalizes WebM/MP4 capture to H.264 MP4, capped at 100 MB, and stores `data/live_demos/live_demo_<UTC timestamp>_<unique suffix>.mp4`. Live demos are local, ignored by Git, and preserved by cleanup. The same fixed-camera, front-plane, textured-can assumptions still apply; live capture does not add depth estimation or object recognition.
+
 ## Validation
+
+Camera browser tests inject a synthetic stream and use the real MediaRecorder, save endpoint, perception, and physics. No physical camera is used in automated verification. The supplied human-video pipeline is verified separately.
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -52,6 +60,6 @@ npm test
 
 Primary verification uses the real running stack. `npm test` covers real desktop execution, inline run details, mapping changes, mobile media/layout, and readable failures. Root tests cover the pipeline, failed physical manipulation, lifecycle, and dependency recovery. Do not run outage tests during an active manipulation. Small service regressions remain for contract boundaries and unsafe outcomes; run them with `docker compose run --rm --no-deps <service> python -m pytest tests -q` when changing that service.
 
-The [GitHub workflow](.github/workflows/build.yml) builds all four images and runs these end-to-end checks on pushes and pull requests. It uses pinned actions, read-only repository permissions, bounded execution, and failure diagnostics. Its equivalent checks run locally; the first hosted run requires an explicit commit and push. Nothing is published or deployed by CI.
+The [GitHub workflow](.github/workflows/build.yml) builds all four images and runs these end-to-end checks on pushes and pull requests. It uses pinned actions, read-only repository permissions, bounded execution, and failure diagnostics. Equivalent checks run locally; hosted verification of uncommitted changes requires an explicit commit and push. Nothing is published or deployed by CI.
 
 The existing architecture and development documents define the authoritative requirements. The explicitly requested `dev_plans/build-01.md` tracks execution and verification without overriding those requirements. Maintain these documents in place; add further documents only when explicitly requested.

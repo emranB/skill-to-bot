@@ -169,6 +169,15 @@ class Workflow:
                 error="Run interrupted by orchestrator shutdown; execution outcome is unknown.",
             )
             raise
+        except httpx.TimeoutException:
+            run.update(
+                status="failed",
+                error=(
+                    "Perception timeout; no robot execution was requested."
+                    if run["phase"] == "processing"
+                    else "Simulation timeout; execution outcome is unknown. Inspect/reset simulation before another run."
+                ),
+            )
         except Exception as error:
             run.update(status="failed", error=str(error) or type(error).__name__)
         finally:

@@ -6,4 +6,5 @@ websockets==15.0.1
 jsonschema==4.23.0
 numpy==1.26.4
 opencv-contrib-python-headless==4.10.0.84
+imageio-ffmpeg==0.6.0
 pytest==8.3.5

@@ -1,5 +1,14 @@
 # skill-to-bot Build 01
 
+## Live camera addition
+
+- [x] Add camera selection, live preview, mapping, bounded recording, and Yes/No save confirmation.
+- [x] Save confirmed recordings as timestamped MP4s in `data/live_demos` before starting the existing pipeline.
+- [x] Handle denied permissions, unavailable camera/recorder, discarded clips, interrupted capture, and failed save/run without losing saved input.
+- [x] Extend Docker mounts, ignored runtime data, existing docs, and CI coverage without adding a service.
+- [x] Verify synthetic-camera capture/discard/save, persisted video, real perception/Panda pipeline, regressions, and desktop/mobile layout.
+- [x] Leave the stack healthy, artifacts excluded, and source ready for an explicit Git commit.
+
 ## Polish and push readiness
 
 - [x] Review all source, documentation, dependencies, and repository contents for unnecessary complexity.
@@ -179,7 +188,7 @@ Initial implementation verification evidence (before the polish pass):
 
 Remaining scope limits: fixed front-plane videos, operator-selected textured can and workspace span, motion-estimated human grasp/release events, one active run, and process-local simulation job tracking. Depth reconstruction, general object recognition, learning, and final-roadmap capabilities are not implemented. Generated artifacts are retained until deliberately removed. Restarted or disconnected executions can have unknown outcomes and must be inspected/reset before reuse. These limits do not block the verified Architecture 01 controlled-scene acceptance condition.
 
-The repository currently has uncommitted, untracked project files and no commit history. This build does not commit or push them. SSH authentication and repository read access are verified; push permissions have not been tested.
+At the initial build handoff, the project files were uncommitted and there was no commit history. The developer subsequently committed the baseline as `5a8c960` (First pass). Later additions remain uncommitted until explicitly requested. SSH authentication and repository read access were verified; push permissions have not been tested by these build passes.
 
 ## Polish verification
 
@@ -194,7 +203,40 @@ Completed on 2026-10-11:
 - Final `npm test` passed 5 browser cases in 36.5 seconds. Only the duplicate mobile physical execution is skipped; desktop/mobile layout, media pixels/playback, mapping invalidation, invalid rectangle, observations, and long errors are verified. The desktop case executes the real pipeline and checks logs, skill, all tracked rows, result video, and reset.
 - Final browser run `e22bb97c409f4d0f97465100ae938c41` completed with 2.2 mm placement error and 12 recorded log entries. Desktop/mobile screenshots, yellow confirmation state, and the mobile observations panel were visually inspected.
 - All four production images built. Final web TypeScript/production build, Prettier, Ruff lint/format, Bash syntax, Compose configuration, document links, and repository input/ignore checks passed. Docker build contexts exclude test traces, caches, generated fixtures, and runtime output.
-- `.github/workflows/build.yml` builds the runtime and runs root/browser end-to-end checks with pinned actions, read-only permissions, time limits, and failure diagnostics. Equivalent commands passed locally; the hosted workflow has not run because nothing has been committed or pushed.
+- `.github/workflows/build.yml` builds the runtime and runs root/browser end-to-end checks with pinned actions, read-only permissions, time limits, and failure diagnostics. Equivalent commands passed locally; hosted verification of these later changes requires committing and pushing them.
 - Git dry-run includes only intended source/docs/configuration and named demonstrations/fixture. Generated UUID uploads, local environments, dependencies, build output, traces, and run data are excluded. Original videos are unchanged, and SSH remote read access still works.
 
 The stack remains healthy at [localhost:5173](http://localhost:5173). The repository is ready for an explicit commit/push; no staging, commit, push, external deployment, or publication was performed.
+
+## Live camera verification
+
+Completed on 2026-10-11:
+
+- Camera selection populates Human demonstration. Mapping confirmation precedes capture; recording and review lock source/mapping changes. Stop opens a native Yes/No dialog. No restores live preview and idle controls without uploading. Yes saves first and then submits the normal run request.
+- Camera capture is video-only, limited to 59 seconds and 100 MB, with supported WebM/MP4 negotiation. Leaving the view stops tracks and releases timers/blob URLs. Permission denial, unsupported recording, disconnect/reconnect, discard, and save errors are handled. Reconnecting clears mapping confirmation.
+- Confirmed files are normalized using pinned imageio-ffmpeg 0.6.0 into seekable MP4s in `data/live_demos`, with UTC-prefixed unique names. Temporary conversion files are removed on success/failure; only complete validated files enter the library. Saved input survives a failed pipeline. Perception has read-only access, and cleanup preserves captured input.
+- Browser camera tests inject deterministic motion using the supplied can texture. They use the actual browser MediaRecorder and the real save/conversion, perception, and simulation services. No physical camera or microphone was accessed. Earlier replay-based recordings were correctly rejected for unreliable tracking and retained as saved inputs; production tracking tolerances were not relaxed.
+- Camera acceptance run `64139c15dce64775aa4a2226a404ce36` used `live_demo_20261011T195948460489Z_47c2c613.mp4`, produced 177 tracked frames, and completed with 2.17 mm placement error and verified lift/release. Recorded simulation playback advanced, and desktop/mobile capture/prompt/result screenshots were inspected.
+- The full browser suite passed 10 cases, with only the duplicate mobile physics executions skipped. Final focused checks also passed for unsupported recording/permission handling on both viewports and camera-to-physics execution/playback.
+- `RUN_INTEGRATION=1 python -m pytest tests -q` passed all 9 root cases in 76.7 seconds when run serially after builds. The supplied human-video pipeline still completed with 2.2 mm error. An earlier build-overlapped run timed out; simulation timeouts now explicitly report unknown execution outcomes instead of a bare exception name. No robot command retries were added.
+- Perception regressions passed 10 cases. Orchestrator regressions passed 9 cases in Linux, including invalid/corrupt camera input cleanup and perception-versus-simulation timeout semantics. The temporary test container exited and was removed.
+- Updated images built successfully; final web TypeScript/production build, Prettier, Ruff lint/format, Compose validation, dependency consistency, document links, and Git whitespace/ignore checks passed. Web dependency audit reported zero vulnerabilities. The GitHub workflow now includes synthetic-camera tests through the same web test command.
+- All four local services are healthy. Generated recordings, run data, and test output remain ignored; only `data/live_demos/.gitkeep` is a new tracked-directory candidate. Original demonstration videos are unchanged. Changes are uncommitted and unstaged; no push or external publication was performed.
+
+Physical camera permissions, browser/device support, and real-scene framing remain operator checks. Live capture does not remove the controlled front-plane mapping and tracking assumptions.
+
+## Build and Git readiness
+
+Reverified on 2026-10-11 after the live-camera addition:
+
+- [x] Review the seven existing documents and resolve their local links. Correct stale commit/hosted-verification wording and keep the active architecture unchanged.
+- [x] Keep project text and Git-facing names/messages change-focused, without tool attribution. Existing branch `main`, commit `5a8c960` (First pass), and SSH remote retain ordinary project naming.
+- [x] Run `npm ci --prefix apps/web`: clean installation succeeded, with 29 packages audited and zero reported vulnerabilities.
+- [x] Run Ruff lint/format, web formatting, TypeScript/production build, Bash syntax checks, and Compose configuration validation. All passed.
+- [x] Run `bash build-and-run.sh` through Git Bash. All four production images built and all four recreated services became healthy.
+- [x] Run `RUN_INTEGRATION=1 python -m pytest tests -q`: 9 passed in 92.96 seconds, including real execution, failed manipulation, lifecycle, and dependency recovery.
+- [x] Run `npm test --prefix apps/web`: 10 passed in 1.3 minutes. Two duplicate mobile physics cases remain intentionally skipped; desktop physics and mobile capture/layout/error paths passed.
+- [x] Verify SSH read access: `git ls-remote origin` returned the existing baseline on remote `main`. This read-only check does not prove push authorization.
+- [x] Inspect the Git add dry-run, ignore rules, and whitespace. Only intended source/docs/configuration and the live-demo directory marker are included; local environments, recordings, run artifacts, build output, and test traces remain excluded.
+
+These are local equivalents of the workflow's source/build/runtime/end-to-end checks, not a hosted Actions result. Hosted runner setup, artifact upload, and these uncommitted changes still require verification after an authorized commit and push. Physical camera behavior remains an operator check. No staging, commit, push, history rewrite, or external deployment was performed. The local stack remains available at [localhost:5173](http://localhost:5173).

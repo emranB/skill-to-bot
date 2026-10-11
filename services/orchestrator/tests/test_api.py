@@ -27,7 +27,7 @@ def test_health_survives_missing_dependencies(client):
     assert client.get("/services").json()["simulation"]["status"] == "unavailable"
 
 
-def test_invalid_and_corrupt_upload(client):
+def test_invalid_and_corrupt_upload(client, tmp_path):
     assert (
         client.post("/demonstrations", files={"file": ("bad.txt", b"invalid")}).status_code == 422
     )
@@ -35,6 +35,15 @@ def test_invalid_and_corrupt_upload(client):
         client.post("/demonstrations", files={"file": ("bad.mp4", b"invalid")}).status_code == 422
     )
     assert client.get("/demonstrations").json() == []
+    assert (
+        client.post("/live-demonstrations", files={"file": ("bad.txt", b"invalid")}).status_code
+        == 422
+    )
+    assert (
+        client.post("/live-demonstrations", files={"file": ("bad.webm", b"invalid")}).status_code
+        == 422
+    )
+    assert list((tmp_path / "live_demos").iterdir()) == []
 
 
 def test_paths_missing_runs_and_calibration(client, tmp_path):

@@ -119,7 +119,7 @@ Avoid:
 - excessive comments
 - tutorial narration inside production code
 - jokes or conversational filler
-- statements about an AI, assistant, prompt, or code generator
+- authorship attribution or tool-specific narration
 - phrases such as `obviously`, `simply`, `just`, or `magic`
 - decorative Unicode symbols
 - emoji
@@ -177,6 +177,7 @@ Never commit:
 - tokens
 - private keys
 - generated runtime data
+- local camera recordings under `data/live_demos` (retain only the directory marker in Git)
 - Python virtual environments
 - `node_modules`
 - IDE-specific state that is not intentionally shared
@@ -185,6 +186,8 @@ Never commit:
 - temporary simulation output
 
 The root `.gitignore` is the default repository policy. Add a nested `.gitignore` only when a service has unique generated files that are clearer to manage locally.
+
+Branch names, commit messages, and pull request descriptions must describe the project change. Do not add tool attribution, generated-by notices, or automatic co-author trailers. Commit and push only when explicitly requested.
 
 ## 8. Testing contract
 
@@ -278,6 +281,7 @@ Core characteristics:
 - status shown clearly without visual noise
 - yellow Confirm Mapping action with an exclamation icon, replaced by Run Demo after confirmation
 - inline Logs, Skill, and Observations tabs under Run status
+- live camera preview and Start/Stop Recording with an explicit Yes/No save prompt
 - actual processing/control phases, completed steps, and honest failure states
 
 Avoid:
@@ -470,7 +474,7 @@ Design mobile-first.
 
 All user-facing text, documentation, code comments, errors, and logs should sound like concise professional engineering work written by a person.
 
-Avoid AI-style filler and unnecessary headings. Avoid exaggerated claims. Avoid decorative punctuation. Do not use emoji or em dashes. Prefer short, ordinary sentences.
+Avoid filler and unnecessary headings. Avoid exaggerated claims. Avoid decorative punctuation. Do not use emoji or em dashes. Prefer short, ordinary sentences.
 
 ## 21. Change discipline
 

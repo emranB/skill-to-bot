@@ -9,6 +9,7 @@
 **/*.tsbuildinfo
 **/.env
 data/runs
+data/live_demos
 data/demonstrations
 apps/web/dist
 data/fixtures

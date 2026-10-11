@@ -159,6 +159,7 @@ Owned DFD process:
 Minimum UI capabilities:
 
 - Select or upload a human demonstration.
+- Select Live Camera, preview and map the object, record/stop, discard with No, or save with Yes before automatic pipeline execution.
 - Start a run.
 - Reset the simulation.
 - Show the human demonstration.
@@ -190,10 +191,13 @@ apps/web/
 ├── nginx.conf
 ├── src/
 │   ├── App.tsx
+│   ├── LiveCamera.tsx
 │   ├── RunStatus.tsx
 │   ├── main.tsx
 │   └── styles.css
-└── tests/browser/workspace.spec.ts
+└── tests/browser/
+    ├── workspace.spec.ts
+    └── camera.spec.ts
 ```
 
 Use React, TypeScript, and Vite unless the active architecture is deliberately revised.
@@ -297,6 +301,7 @@ skill-to-bot/
 │   └── fixtures/                 # Skill fixture and video regeneration script
 └── data/
     ├── demonstrations/
+    ├── live_demos/               # Ignored confirmed camera recordings
     ├── runs/
     └── fixtures/
 ```
@@ -365,9 +370,15 @@ Use FastAPI HTTP REST/JSON interfaces and HTTPX clients between orchestrator, pe
 
 Browser-facing runs and asynchronous simulation execution return HTTP 202 and a run ID. Execution requests are keyed by that ID and are not blindly retried. The bounded internal perception call is synchronous inside the orchestrator's background task. Health reads may use bounded retries; processing and execution have bounded deadlines. Keep one active manipulation run and reject reset or conflicting execution while it is active. Do not add Kafka, ZeroMQ, a broker, or durable queue for this MVP. The simulation owns its controller and stepping loop entirely inside its process.
 
-Dependency verification sources: [LIBERO](https://github.com/Lifelong-Robot-Learning/LIBERO), [robosuite installation](https://robosuite.ai/docs/installation.html), [Vite requirements](https://vite.dev/guide/), and [FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/). Pin the LIBERO simulation-only source to `8f1084e3132a39270c3a13ebe37270a43ece2a01`; training packages and datasets are outside MVP scope.
+Dependency verification sources: [LIBERO](https://github.com/Lifelong-Robot-Learning/LIBERO), [robosuite source](https://github.com/ARISE-Initiative/robosuite), [Vite requirements](https://vite.dev/guide/), and [FastAPI WebSockets](https://fastapi.tiangolo.com/advanced/websockets/). Pin the LIBERO simulation-only source to `8f1084e3132a39270c3a13ebe37270a43ece2a01`; training packages and datasets are outside MVP scope.
 
 ## 13. MVP interfaces and calibration
+
+Camera capture is an approved input path inside the existing Web/API ownership. Web uses [getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia) and [MediaRecorder](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder), with video only, a supported WebM/MP4 codec, explicit browser permission, and localhost/HTTPS. No microphone permission is requested. Camera tracks stop when leaving the camera view; capture timers and blob URLs are released on exit. Mapping inputs cannot change during recording or confirmation. Capture stops at 59 seconds to fit the 60-second server limit, with a 100 MB client/server cap.
+
+`POST /live-demonstrations` receives only confirmed clips as multipart `file`, serializes conversion, and returns 201 after the saved input exists. Orchestrator uses pinned [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) 0.6.0 to normalize capture into seekable H.264 MP4 (25 FPS, at most 1280x720, no audio). Conversion has a 90-second deadline; unreadable, empty, oversized, or over-duration clips are rejected and temporary files removed. The UTC name is `live_demo_YYYYmmddTHHMMSSffffffZ_<8 hex>.mp4`, stored atomically in `data/live_demos`. This prefix is reserved for that directory. Existing library, preview, video, and run endpoints accept these names; perception reads the directory through a read-only mount. No schema or service boundary changes.
+
+After Stop, Yes saves first and then submits the existing `/runs` request with the confirmed mapping. No discards the browser-only clip and restores idle capture; it makes no upload or run request. A failed save keeps the prompt for retry/discard. A failed run preserves the saved video in the library for inspection or another run. Browser tests use synthetic video streams rather than a physical camera, exercise permission/discard/failure handling on desktop/mobile, and pass an actual browser recording through conversion, perception, and physics. A real camera session still depends on the operator's permissions, framing, and demonstration quality.
 
 Workflow records concise timestamped run logs in `run.json` and streams them with status snapshots. Logs describe processing, observed simulation phase changes, and completion or failure; they are not frame-level traces. The browser reads the skill from run state and observations through the existing artifact endpoint. All tracked frames are visible in a scrollable table; nothing requires a download. Older runs without recorded logs are labelled honestly. Uploaded UUID-named videos remain local and ignored by Git; supplied named demonstrations and the compact deterministic fixture remain repository inputs.
 

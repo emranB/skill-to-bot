@@ -7,10 +7,12 @@ import os
 import re
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
 import httpx
+import imageio_ffmpeg
 from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -19,6 +21,7 @@ from src.workflow.workflow import Workflow
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = json.loads((ROOT / "config.json").read_text())
+LOGGER = logging.getLogger("skill-to-bot.capture")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 DATA = Path(os.environ.get("DATA_DIR", str(ROOT.parent.parent / "data"))).resolve()
@@ -27,6 +30,8 @@ DATA = Path(os.environ.get("DATA_DIR", str(ROOT.parent.parent / "data"))).resolv
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     DATA.joinpath("demonstrations").mkdir(parents=True, exist_ok=True)
+    DATA.joinpath("live_demos").mkdir(parents=True, exist_ok=True)
+    app.state.capture_lock = asyncio.Lock()
     app.state.workflow = Workflow(
         DATA,
         CONFIG,
@@ -60,8 +65,9 @@ def demo_path(video: str) -> Path:
         or not video.lower().endswith(".mp4")
     ):
         raise HTTPException(422, "Invalid demonstration name.")
-    path = (DATA / "demonstrations" / video).resolve()
-    if path.parent != DATA / "demonstrations" or not path.is_file():
+    directory = DATA / ("live_demos" if video.startswith("live_demo_") else "demonstrations")
+    path = (directory / video).resolve()
+    if path.parent != directory.resolve() or not path.is_file():
         raise HTTPException(404, "Demonstration not found.")
     return path
 
@@ -109,9 +115,10 @@ async def services():
 @app.get("/demonstrations")
 def demonstrations():
     return [
-        {"name": path.name, "bytes": path.stat().st_size, "url": "/demonstrations/" + path.name}
-        for path in sorted(DATA.joinpath("demonstrations").glob("*.mp4"))
-        if path.resolve().parent == DATA / "demonstrations"
+        demo_info(path)
+        for directory in (DATA / "demonstrations", DATA / "live_demos")
+        for path in sorted(directory.glob("*.mp4"))
+        if path.resolve().parent == directory.resolve() and not path.name.startswith(".")
     ]
 
 
@@ -144,8 +151,23 @@ def demonstration(video: str):
 @app.post("/demonstrations", status_code=201)
 async def upload(file: UploadFile):
     if not (file.filename or "").lower().endswith(".mp4"):
+        await file.close()
         raise HTTPException(422, "Upload an MP4 video.")
     path = DATA / "demonstrations" / (uuid.uuid4().hex + ".mp4")
+    try:
+        await write_upload(file, path)
+        validate_video(path)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    return demo_info(path)
+
+
+def demo_info(path: Path):
+    return {"name": path.name, "bytes": path.stat().st_size, "url": "/demonstrations/" + path.name}
+
+
+async def write_upload(file: UploadFile, path: Path):
     size = 0
     try:
         with path.open("wb") as output:
@@ -154,25 +176,97 @@ async def upload(file: UploadFile):
                 if size > CONFIG["max_upload_bytes"]:
                     raise HTTPException(413, "Video exceeds 100 MB.")
                 output.write(chunk)
-        capture = cv2.VideoCapture(str(path))
-        try:
-            fps, frames = capture.get(cv2.CAP_PROP_FPS), capture.get(cv2.CAP_PROP_FRAME_COUNT)
-            valid = (
-                capture.isOpened()
-                and fps > 0
-                and frames >= 4
-                and frames / fps <= CONFIG["max_video_seconds"]
-            )
-        finally:
-            capture.release()
-        if not valid:
-            raise HTTPException(422, "Video is unreadable, empty, or longer than 60 seconds.")
-    except Exception:
-        path.unlink(missing_ok=True)
-        raise
     finally:
         await file.close()
-    return {"name": path.name, "bytes": size, "url": "/demonstrations/" + path.name}
+
+
+def validate_video(path: Path):
+    capture = cv2.VideoCapture(str(path))
+    try:
+        fps, frames = capture.get(cv2.CAP_PROP_FPS), capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        valid = (
+            capture.isOpened()
+            and fps > 0
+            and frames >= 4
+            and frames / fps <= CONFIG["max_video_seconds"]
+        )
+    finally:
+        capture.release()
+    if not valid or path.stat().st_size > CONFIG["max_upload_bytes"]:
+        raise HTTPException(
+            422, "Video is unreadable, empty, too large, or longer than 60 seconds."
+        )
+
+
+@app.post("/live-demonstrations", status_code=201)
+async def live_upload(file: UploadFile):
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in {".webm", ".mp4"}:
+        await file.close()
+        raise HTTPException(422, "Record a WebM or MP4 video.")
+    if app.state.capture_lock.locked():
+        await file.close()
+        raise HTTPException(409, "Another recording is being saved.")
+    async with app.state.capture_lock:
+        directory = DATA / "live_demos"
+        token = uuid.uuid4().hex
+        source = directory / (".upload_" + token + suffix)
+        output = directory / (".pending_" + token + ".mp4")
+        process = None
+        try:
+            await write_upload(file, source)
+            process = await asyncio.create_subprocess_exec(
+                imageio_ffmpeg.get_ffmpeg_exe(),
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                str(source),
+                "-map",
+                "0:v:0",
+                "-an",
+                "-t",
+                str(CONFIG["max_video_seconds"] + 1),
+                "-vf",
+                "scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2",
+                "-r",
+                "25",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "20",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                "-fs",
+                str(CONFIG["max_upload_bytes"] + 1),
+                str(output),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, error = await asyncio.wait_for(process.communicate(), timeout=90)
+            if process.returncode:
+                LOGGER.warning(
+                    "Recording conversion failed: %s", error.decode(errors="replace")[:400]
+                )
+                raise HTTPException(422, "Recording could not be decoded. Record again.")
+            validate_video(output)
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            saved = directory / f"live_demo_{timestamp}_{token[:8]}.mp4"
+            output.replace(saved)
+            return demo_info(saved)
+        except TimeoutError as error:
+            raise HTTPException(422, "Recording conversion timed out. Record again.") from error
+        finally:
+            if process is not None and process.returncode is None:
+                process.kill()
+                await process.wait()
+            source.unlink(missing_ok=True)
+            output.unlink(missing_ok=True)
 
 
 @app.post("/runs", status_code=202)

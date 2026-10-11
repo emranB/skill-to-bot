@@ -10,6 +10,7 @@ services:
       CONTRACTS_DIR: /app/contracts
     volumes:
       - ./data/demonstrations:/data/demonstrations:ro
+      - ./data/live_demos:/data/live_demos:ro
     ports:
       - "127.0.0.1:8001:8001"
     healthcheck:
@@ -49,6 +50,7 @@ services:
       WEB_ORIGINS: "http://localhost:${WEB_PORT:-5173},http://127.0.0.1:${WEB_PORT:-5173}"
     volumes:
       - ./data/demonstrations:/data/demonstrations
+      - ./data/live_demos:/data/live_demos
       - ./data/runs:/data/runs
     ports:
       - "127.0.0.1:${ORCHESTRATOR_PORT:-8000}:8000"

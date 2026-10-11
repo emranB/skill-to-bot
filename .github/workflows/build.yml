@@ -40,13 +40,13 @@ jobs:
           npm run format:check --prefix apps/web
           npm run build --prefix apps/web
           docker compose config --quiet
-          mkdir -p data/runs
+          mkdir -p data/runs data/live_demos
           bash build-and-run.sh
       - name: Verify pipeline and failure recovery
         env:
           RUN_INTEGRATION: "1"
         run: python -m pytest tests -q
-      - name: Verify desktop and mobile workflows
+      - name: Verify desktop, mobile, and synthetic-camera workflows
         run: npm test --prefix apps/web
       - name: Collect diagnostics
         if: always()
