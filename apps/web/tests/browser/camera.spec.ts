@@ -8,11 +8,16 @@ type CameraWindow = Window & {
 };
 
 async function syntheticCamera(page: Page) {
-  await page.addInitScript(() => {
+  const response = await page.request.get(
+    '/api/demonstrations/pop-can-pick-up-right-to-left-1.mp4/preview',
+  );
+  expect(response.ok()).toBe(true);
+  const texture = `data:image/jpeg;base64,${(await response.body()).toString('base64')}`;
+  await page.addInitScript((texture) => {
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
       value: async () => {
         const image = new Image();
-        image.src = '/api/demonstrations/pop-can-pick-up-right-to-left-1.mp4/preview';
+        image.src = texture;
         await image.decode();
         const canvas = document.createElement('canvas');
         canvas.width = 640;
@@ -54,7 +59,7 @@ async function syntheticCamera(page: Page) {
         return stream;
       },
     });
-  });
+  }, texture);
   await page.goto('/');
   await page.getByRole('button', { name: 'Live Camera' }).click();
   const feed = page.getByLabel('Live camera feed', { exact: true });

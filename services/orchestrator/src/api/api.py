@@ -16,6 +16,7 @@ import imageio_ffmpeg
 from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
+from jsonschema import Draft202012Validator, ValidationError
 from pydantic import BaseModel, Field
 from src.workflow.workflow import Workflow
 
@@ -25,6 +26,10 @@ LOGGER = logging.getLogger("skill-to-bot.capture")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 DATA = Path(os.environ.get("DATA_DIR", str(ROOT.parent.parent / "data"))).resolve()
+CONTRACTS = Path(os.environ.get("CONTRACTS_DIR", str(ROOT.parent.parent / "contracts")))
+CALIBRATION_VALIDATOR = Draft202012Validator(
+    json.loads((CONTRACTS / "skill.schema.json").read_text())["properties"]["calibration"]
+)
 
 
 @asynccontextmanager
@@ -73,13 +78,12 @@ def demo_path(video: str) -> Path:
 
 
 def validate_calibration(calibration: dict):
+    try:
+        CALIBRATION_VALIDATOR.validate(calibration)
+    except ValidationError as error:
+        raise HTTPException(422, f"Invalid calibration: {error.message}") from error
     roi = calibration.get("roi")
     span = calibration.get("workspace_span")
-    if calibration.get("method") != "operator_planar" or calibration.get("plane") not in (
-        "front",
-        "table",
-    ):
-        raise HTTPException(422, "Explicit front or projected-table calibration is required.")
     if not isinstance(span, (int, float)) or not math.isfinite(span) or not 0.05 <= span <= 0.5:
         raise HTTPException(422, "Workspace span must be 0.05 to 0.5 meters.")
     if (
@@ -90,6 +94,23 @@ def validate_calibration(calibration: dict):
         raise HTTPException(422, "Select a valid object rectangle.")
     if min(roi[2:]) < 0.01 or roi[0] + roi[2] > 1 or roi[1] + roi[3] > 1:
         raise HTTPException(422, "Object rectangle must fit inside the video.")
+
+
+@app.post("/calibration")
+async def check_calibration(calibration: dict):
+    validate_calibration(calibration)
+    try:
+        workflow = app.state.workflow
+        response = await workflow.client.post(
+            workflow.urls["perception"] + "/calibration", json=calibration, timeout=10
+        )
+        if response.status_code != 200:
+            raise HTTPException(
+                response.status_code, response.json().get("detail", "Invalid surface calibration.")
+            )
+        return response.json()
+    except httpx.HTTPError as error:
+        raise HTTPException(503, "Perception is unavailable for calibration.") from error
 
 
 @app.get("/health")
@@ -276,6 +297,8 @@ async def live_upload(file: UploadFile):
 async def start(request: RunRequest):
     demo_path(request.video)
     validate_calibration(request.calibration)
+    if request.calibration["method"] == "support_plane":
+        await check_calibration(request.calibration)
     try:
         return await app.state.workflow.start(
             request.video, request.calibration, request.request_id

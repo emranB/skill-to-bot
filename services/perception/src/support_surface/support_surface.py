@@ -3,6 +3,117 @@ import cv2
 import numpy as np
 
 
+def surface_pose(surface: dict, config: dict) -> dict:
+    """Calibrate a measured rectangle: near-left, near-right, far-right, far-left."""
+    corners = np.asarray(surface["corners"], dtype=float)
+    size = np.asarray(surface["size"], dtype=float)
+    values = np.r_[
+        corners.ravel(),
+        size,
+        surface["horizontal_fov"],
+        surface["object_height"],
+        surface["image_aspect"],
+    ]
+    if not np.isfinite(values).all():
+        raise ValueError("Surface calibration must contain finite measurements.")
+    contour = corners.astype(np.float32)
+    if (
+        corners.shape != (4, 2)
+        or not cv2.isContourConvex(contour)
+        or cv2.contourArea(contour, oriented=True) >= -0.005
+        or np.min(np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)) < 0.025
+    ):
+        raise ValueError("Select four distinct surface corners in near-left to far-left order.")
+    width, depth = size
+    plane = np.array([[0, 0], [width, 0], [width, depth], [0, depth]], dtype=np.float64)
+    homography = cv2.getPerspectiveTransform(contour, plane.astype(np.float32))
+    if np.linalg.cond(homography) > 1e6:
+        raise ValueError("Surface corners are too compressed for a reliable mapping.")
+    focal = 0.5 / np.tan(np.radians(surface["horizontal_fov"]) / 2)
+    intrinsics = np.array([[focal, 0, 0.5], [0, focal * surface["image_aspect"], 0.5], [0, 0, 1]])
+    world = np.column_stack((plane, np.zeros(4)))
+    ok, rotations, translations, _ = cv2.solvePnPGeneric(
+        world, corners, intrinsics, None, flags=cv2.SOLVEPNP_IPPE
+    )
+    candidates = []
+    if ok:
+        for rotation_vector, translation in zip(rotations, translations):
+            rotation = cv2.Rodrigues(rotation_vector)[0]
+            camera = -rotation.T @ translation.ravel()
+            projected = cv2.projectPoints(world, rotation_vector, translation, intrinsics, None)[0]
+            error = float(np.max(np.linalg.norm(projected[:, 0] - corners, axis=1)))
+            if camera[2] > surface["object_height"] + config["surface_height_tolerance"]:
+                candidates.append((error, rotation, camera))
+    if not candidates:
+        raise ValueError("Surface calibration must describe a camera above the support plane.")
+    error, rotation, camera = min(candidates, key=lambda value: value[0])
+    if error > config["surface_reprojection_limit"]:
+        raise ValueError("Surface dimensions, corners and camera field of view disagree.")
+    return {
+        "intrinsics": intrinsics,
+        "rotation": rotation,
+        "camera": camera,
+        "reprojection_error": error,
+    }
+
+
+def assign_calibrated_surface(samples: list[dict], calibration: dict, config: dict) -> None:
+    """Separate table motion and height for an upright rigid, fixed-view foreground."""
+    surface = calibration["surface"]
+    pose = surface_pose(surface, config)
+    if any(abs(sample["image_aspect"] - surface["image_aspect"]) > 0.01 for sample in samples):
+        raise ValueError("Camera aspect changed. Recalibrate using the recorded frame.")
+    if any(not sample.get("flow_valid", False) for sample in samples):
+        raise ValueError(
+            "Calibrated motion needs continuous foreground scale. Use a clear, rigid object without occlusion or rotation."
+        )
+    uv = np.array([sample["reference_uv"] for sample in samples])
+    scales = np.array([sample["foreground_scale"] for sample in samples])
+    if (
+        not np.isfinite(uv).all()
+        or not np.isfinite(scales).all()
+        or np.any(scales <= 0)
+        or np.any(uv < 0)
+        or np.any(uv > 1)
+    ):
+        raise ValueError("Foreground position and scale must be finite and positive.")
+    if np.max(np.linalg.norm(uv[:5] - uv[0], axis=1)) > 0.01 or np.ptp(scales[:5]) > 0.02:
+        raise ValueError("Start with the object resting still on the calibrated surface.")
+    rays = np.column_stack((uv, np.ones(len(uv)))) @ np.linalg.inv(pose["intrinsics"]).T
+    rays = rays @ pose["rotation"]
+    initial_ray = np.median(rays[:5], axis=0)
+    camera = pose["camera"]
+    center_height = surface["object_height"] / 2
+    if initial_ray[2] >= -0.02:
+        raise ValueError("The initial object ray does not intersect its resting plane reliably.")
+    initial_depth = (center_height - camera[2]) / initial_ray[2]
+    # For an unchanged rigid foreground, apparent scale is inverse camera depth.
+    positions = camera + rays * (initial_depth * np.median(scales[:5]) / scales)[:, None]
+    height = positions[:, 2] - center_height
+    width, depth = surface["size"]
+    margin = config["surface_motion_tolerance"]
+    if (
+        not np.isfinite(positions).all()
+        or np.any(positions[:, :2] < -margin)
+        or np.any(positions[:, :2] > np.array([width, depth]) + margin)
+        or height.min() < -config["surface_height_tolerance"]
+        or height.max() > min(0.5, camera[2] - surface["object_height"])
+    ):
+        raise ValueError(
+            "Tracked geometry leaves the calibrated surface envelope. Check measurements, object pose and occlusion."
+        )
+    if abs(float(np.median(height[-5:]))) > config["surface_height_tolerance"]:
+        raise ValueError("The ending object does not return to the calibrated support plane.")
+    for sample, position, separation in zip(samples, positions, height):
+        sample["surface_position"] = position[:2].tolist()
+        sample["height_m"] = float(separation)
+        sample["separation"] = float(max(0, separation) / max(width, depth))
+        sample["on_surface"] = sample["separation"] < config["separation_threshold"]
+        sample["support_confidence"] = (
+            1.0 - pose["reprojection_error"] / config["surface_reprojection_limit"]
+        )
+
+
 def surface_separation(
     scale: float, image_up: float, contact: float, rest_contact: float, config: dict
 ) -> float:

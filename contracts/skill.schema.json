@@ -159,7 +159,7 @@
       ],
       "properties": {
         "method": {
-          "const": "operator_planar"
+          "enum": ["operator_planar", "support_plane"]
         },
         "workspace_span": {
           "type": "number",
@@ -178,8 +178,36 @@
           },
           "minItems": 4,
           "maxItems": 4
+        },
+        "surface": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["corners", "size", "horizontal_fov", "object_height", "image_aspect"],
+          "properties": {
+            "corners": {
+              "type": "array", "minItems": 4, "maxItems": 4,
+              "items": {
+                "type": "array", "minItems": 2, "maxItems": 2,
+                "items": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            },
+            "size": {
+              "type": "array", "minItems": 2, "maxItems": 2,
+              "items": {"type": "number", "minimum": 0.05, "maximum": 2}
+            },
+            "horizontal_fov": {"type": "number", "minimum": 35, "maximum": 120},
+            "object_height": {"type": "number", "minimum": 0.01, "maximum": 0.5},
+            "image_aspect": {"type": "number", "minimum": 0.2, "maximum": 5}
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"method": {"const": "support_plane"}}},
+          "then": {"required": ["surface"], "properties": {"plane": {"const": "table"}}},
+          "else": {"not": {"required": ["surface"]}}
+        }
+      ]
     },
     "source": {
       "type": "object",

@@ -1,5 +1,5 @@
 // Purpose: Preview the camera, record a bounded clip, and confirm saving before execution.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Camera, Circle, LoaderCircle, Square } from 'lucide-react';
 
 export type Roi = [number, number, number, number];
@@ -21,9 +21,22 @@ type Props = {
   onMapping: (roi: Roi) => void;
   onLock: (locked: boolean) => void;
   onSave: (clip: Blob) => Promise<void>;
+  onRatio?: (ratio: number) => void;
+  onSurfacePoint?: (point: [number, number]) => void;
+  overlay?: ReactNode;
 };
 
-export default function LiveCamera({ roi, confirmed, disabled, onMapping, onLock, onSave }: Props) {
+export default function LiveCamera({
+  roi,
+  confirmed,
+  disabled,
+  onMapping,
+  onLock,
+  onSave,
+  onRatio,
+  onSurfacePoint,
+  overlay,
+}: Props) {
   const [ready, setReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -199,6 +212,10 @@ export default function LiveCamera({ roi, confirmed, disabled, onMapping, onLock
         style={{ aspectRatio: ratio }}
         onPointerDown={(event) => {
           if (recording || clip || disabled) return;
+          if (onSurfacePoint) {
+            onSurfacePoint(point(event));
+            return;
+          }
           drag.current = point(event);
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
@@ -237,9 +254,11 @@ export default function LiveCamera({ roi, confirmed, disabled, onMapping, onLock
           onLoadedData={(event) => {
             const element = event.currentTarget;
             setRatio(element.videoWidth / element.videoHeight);
+            onRatio?.(element.videoWidth / element.videoHeight);
             if (!clip) setReady(true);
           }}
         />
+        {!clip && ready && overlay}
         {!clip && ready && (
           <div
             className="roi"

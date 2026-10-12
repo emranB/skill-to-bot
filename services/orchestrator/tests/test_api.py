@@ -76,3 +76,20 @@ def test_websocket_snapshot(client):
         snapshot = socket.receive_json()
         assert snapshot["type"] == "snapshot"
         assert snapshot["services"]["perception"]["status"] == "unavailable"
+
+
+def test_calibration_boundary_reports_missing_geometry_and_dependency(client):
+    legacy = {
+        "method": "operator_planar",
+        "plane": "front",
+        "workspace_span": 0.3,
+        "roi": [0.1, 0.1, 0.2, 0.4],
+    }
+    assert (
+        client.post(
+            "/calibration", json={**legacy, "method": "support_plane", "plane": "table"}
+        ).status_code
+        == 422
+    )
+    assert client.post("/calibration", json=legacy).status_code == 503
+    assert client.post("/calibration", json={**legacy, "extra": "ignored"}).status_code == 422

@@ -20,5 +20,9 @@
   "settle_frames": 8,
   "min_transfer_distance": 0.025,
   "approach_clearance": 0.08,
-  "object_center_height": 0.95
+  "object_center_height": 0.95,
+  "surface_reprojection_limit": 0.008,
+  "surface_height_tolerance": 0.02,
+  "surface_motion_tolerance": 0.025,
+  "foreground_rotation_limit": 15
 }

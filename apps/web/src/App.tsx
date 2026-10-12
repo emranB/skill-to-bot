@@ -15,9 +15,11 @@ import {
 import config from '../config.json';
 import RunStatus, { type Run, type Observation } from './RunStatus';
 import LiveCamera, { clickHint, type Roi } from './LiveCamera';
+import SurfaceMapping, { SurfaceOutline, type Point, type Surface } from './SurfaceMapping';
 
 type Demo = { name: string; bytes: number; url: string };
 type Services = Record<string, { status: string; detail?: string }>;
+type DemoSort = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc';
 
 function displayName(name: string) {
   const live = name.match(/^live_demo_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
@@ -27,6 +29,31 @@ function displayName(name: string) {
     .replace(/(?:\.mp4)+$/i, '')
     .replace(/^pop-can-pick-up-/, 'Can pickup ')
     .replaceAll('-', ' ');
+}
+
+function demoCreatedAt(name: string) {
+  const live = name.match(/^live_demo_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+  if (!live) return 0;
+  return Date.UTC(
+    Number(live[1]),
+    Number(live[2]) - 1,
+    Number(live[3]),
+    Number(live[4]),
+    Number(live[5]),
+    Number(live[6]),
+  );
+}
+
+function sortDemos(items: Demo[], sort: DemoSort) {
+  const copy = [...items];
+  copy.sort((a, b) => {
+    if (sort === 'name-asc') return a.name.localeCompare(b.name);
+    if (sort === 'name-desc') return b.name.localeCompare(a.name);
+    const delta = demoCreatedAt(a.name) - demoCreatedAt(b.name);
+    if (delta !== 0) return sort === 'date-asc' ? delta : -delta;
+    return sort === 'date-asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+  });
+  return copy;
 }
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -45,12 +72,21 @@ export default function App() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [roi, setRoi] = useState<Roi>([0.67, 0.23, 0.17, 0.5]);
   const [span, setSpan] = useState(config.defaultWorkspaceSpanMeters);
-  const [plane, setPlane] = useState<'front' | 'table'>('front');
+  const [plane, setPlane] = useState<'front' | 'table' | 'calibrated'>('front');
+  const [surface, setSurface] = useState<Surface>({
+    corners: [null, null, null, null],
+    size: [0, 0],
+    horizontal_fov: 0,
+    object_height: 0,
+    image_aspect: 16 / 9,
+  });
+  const [surfacePoint, setSurfacePoint] = useState(-1);
   const [observations, setObservations] = useState<Observation[]>([]);
   const [sourceTime, setSourceTime] = useState(0);
   const [confirmed, setConfirmed] = useState(false);
   const [mode, setMode] = useState<'object' | 'video'>('object');
   const [frameRatio, setFrameRatio] = useState(16 / 9);
+  const [previewReady, setPreviewReady] = useState(false);
   const [tab, setTab] = useState<'workspace' | 'history'>('workspace');
   const [pending, setPending] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -58,8 +94,10 @@ export default function App() {
   const [runId, setRunId] = useState('');
   const [camera, setCamera] = useState(false);
   const [cameraLocked, setCameraLocked] = useState(false);
+  const [demoSort, setDemoSort] = useState<DemoSort>('date-desc');
   const drag = useRef<[number, number] | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const sortedDemos = sortDemos(demos, demoSort);
   const run = camera
     ? undefined
     : runs.find((item) => item.run_id === runId) || runs.find((item) => item.video === selected);
@@ -139,9 +177,11 @@ export default function App() {
     setCamera(false);
     setRunId('');
     setSelected(name);
+    setPreviewReady(false);
     setConfirmed(false);
     setError('');
     setMode('object');
+    setSurface((previous) => ({ ...previous, corners: [null, null, null, null] }));
   }
   async function upload(file?: File) {
     if (!file) return;
@@ -170,7 +210,7 @@ export default function App() {
         body: JSON.stringify({
           video,
           request_id: crypto.randomUUID(),
-          calibration: { method: 'operator_planar', plane, workspace_span: span, roi },
+          calibration: calibration(),
         }),
       });
       setRunId(value.run_id);
@@ -181,6 +221,64 @@ export default function App() {
     } finally {
       setPending(false);
     }
+  }
+  function calibration() {
+    return plane === 'calibrated'
+      ? { method: 'support_plane', plane: 'table', workspace_span: span, roi, surface }
+      : { method: 'operator_planar', plane, workspace_span: span, roi };
+  }
+  async function confirmMapping() {
+    setError('');
+    if (plane !== 'calibrated') {
+      setConfirmed(true);
+      return;
+    }
+    if (surface.corners.some((point) => !point)) {
+      setError('Select all four corners of the measured support rectangle.');
+      return;
+    }
+    if (
+      surface.size.some((size) => size < 0.05 || size > 2) ||
+      surface.object_height < 0.01 ||
+      surface.object_height > 0.5 ||
+      surface.horizontal_fov < 35 ||
+      surface.horizontal_fov > 120
+    ) {
+      setError(
+        'Enter measured surface dimensions, object height and camera horizontal field of view.',
+      );
+      return;
+    }
+    setPending(true);
+    try {
+      await api('/calibration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(calibration()),
+      });
+      setConfirmed(true);
+      setSurfacePoint(-1);
+    } catch (problem) {
+      setError((problem as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+  function changeSurface(value: Surface) {
+    setSurface(value);
+    setConfirmed(false);
+  }
+  function updateFrameRatio(ratio: number) {
+    setFrameRatio(ratio);
+    if (Math.abs(surface.image_aspect - ratio) > 0.01) {
+      setSurface((previous) => ({ ...previous, image_aspect: ratio }));
+      if (plane === 'calibrated') setConfirmed(false);
+    }
+  }
+  function placeSurfacePoint(point: Point) {
+    const corners = [...surface.corners];
+    corners[surfacePoint] = point;
+    changeSurface({ ...surface, corners });
   }
   async function saveRecording(clip: Blob) {
     setPending(true);
@@ -219,7 +317,7 @@ export default function App() {
     ];
   }
   function draw(event: React.PointerEvent<HTMLDivElement>) {
-    if (!drag.current || busy) return;
+    if (!drag.current || locked || (plane === 'calibrated' && surfacePoint >= 0)) return;
     const point = coordinates(event);
     setRoi([
       Math.min(point[0], drag.current[0]),
@@ -299,6 +397,11 @@ export default function App() {
                       setRunId(item.run_id);
                       setCamera(false);
                       setSelected(item.video);
+                      setPreviewReady(false);
+                      setSurface((previous) => ({
+                        ...previous,
+                        corners: [null, null, null, null],
+                      }));
                       setConfirmed(false);
                       setMode('video');
                       setTab('workspace');
@@ -338,9 +441,10 @@ export default function App() {
                     (!selected && !camera) ||
                     (confirmed && (!available || camera)) ||
                     locked ||
+                    (!camera && !previewReady) ||
                     !validMapping
                   }
-                  onClick={() => (confirmed ? void start() : setConfirmed(true))}
+                  onClick={() => (confirmed ? void start() : void confirmMapping())}
                 >
                   {busy || pending ? (
                     <LoaderCircle size={17} className="spin" />
@@ -364,7 +468,7 @@ export default function App() {
                 <div className="section-label">
                   <h3>Demonstrations</h3>
                   <button
-                    className="icon-button"
+                    className="icon-button upload-button"
                     title="Upload MP4 video"
                     aria-label="Upload MP4 video"
                     disabled={locked}
@@ -380,6 +484,19 @@ export default function App() {
                     onChange={(event) => void upload(event.target.files?.[0])}
                   />
                 </div>
+                <label className="sort-control">
+                  <span className="visually-hidden">Sort demonstrations</span>
+                  <select
+                    value={demoSort}
+                    disabled={locked}
+                    onChange={(event) => setDemoSort(event.target.value as DemoSort)}
+                  >
+                    <option value="date-desc">Newest</option>
+                    <option value="date-asc">Oldest</option>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                  </select>
+                </label>
                 <div className="demo-list">
                   <button
                     className={camera ? 'selected camera-choice' : 'camera-choice'}
@@ -389,6 +506,10 @@ export default function App() {
                       setRunId('');
                       setConfirmed(false);
                       setError('');
+                      setSurface((previous) => ({
+                        ...previous,
+                        corners: [null, null, null, null],
+                      }));
                     }}
                   >
                     <Camera size={22} />
@@ -397,23 +518,26 @@ export default function App() {
                       <small>Browser camera</small>
                     </span>
                   </button>
-                  {demos.map((demo) => (
-                    <button
-                      className={!camera && selected === demo.name ? 'selected' : ''}
-                      key={demo.name}
-                      disabled={locked}
-                      onClick={() => choose(demo.name)}
-                    >
-                      <img
-                        src={`/api/demonstrations/${encodeURIComponent(demo.name)}/preview`}
-                        alt=""
-                      />
-                      <span>
-                        <strong title={demo.name}>{displayName(demo.name)}</strong>
-                        <small>{(demo.bytes / 1024 / 1024).toFixed(1)} MB</small>
-                      </span>
-                    </button>
-                  ))}
+                  <div className="demo-scroll">
+                    {sortedDemos.map((demo) => (
+                      <button
+                        className={!camera && selected === demo.name ? 'selected' : ''}
+                        key={demo.name}
+                        disabled={locked}
+                        onClick={() => choose(demo.name)}
+                      >
+                        <img
+                          src={`/api/demonstrations/${encodeURIComponent(demo.name)}/preview`}
+                          alt=""
+                          loading="lazy"
+                        />
+                        <span>
+                          <strong title={demo.name}>{displayName(demo.name)}</strong>
+                          <small>{(demo.bytes / 1024 / 1024).toFixed(1)} MB</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {!demos.length && <p className="muted">No demonstrations available.</p>}
                 <div className="calibration">
@@ -424,15 +548,27 @@ export default function App() {
                     value={plane}
                     disabled={locked}
                     onChange={(event) => {
-                      setPlane(event.target.value as 'front' | 'table');
+                      setPlane(event.target.value as 'front' | 'table' | 'calibrated');
                       setConfirmed(false);
+                      setMode('object');
                     }}
                   >
-                    <option value="front">Front plane (sideways)</option>
-                    <option value="table">Projected table (two axes)</option>
+                    <option value="front">Front plane</option>
+                    <option value="table">Projected table</option>
+                    <option value="calibrated">Calibrated support</option>
                   </select>
+                  {plane === 'calibrated' && (
+                    <SurfaceMapping
+                      surface={surface}
+                      point={surfacePoint}
+                      disabled={locked}
+                      onPoint={setSurfacePoint}
+                      onChange={changeSurface}
+                    />
+                  )}
                   <label htmlFor="span">
-                    Horizontal span <span>{span.toFixed(2)} m</span>
+                    {plane === 'calibrated' ? 'Robot width' : 'Horizontal span'}{' '}
+                    <span>{span.toFixed(2)} m</span>
                   </label>
                   <input
                     id="span"
@@ -473,8 +609,8 @@ export default function App() {
                   </fieldset>
                   <p className={`mapping-state ${confirmed ? 'ready' : ''}`}>
                     {confirmed
-                      ? `${plane === 'front' ? 'Front-plane' : 'Projected-table'} mapping confirmed`
-                      : `${plane === 'front' ? 'Front-plane' : 'Projected-table'} mapping unconfirmed`}
+                      ? `${plane === 'front' ? 'Front-plane' : plane === 'table' ? 'Projected-table' : 'Calibrated support'} mapping confirmed`
+                      : `${plane === 'front' ? 'Front-plane' : plane === 'table' ? 'Projected-table' : 'Calibrated support'} mapping unconfirmed`}
                   </p>
                 </div>
               </aside>
@@ -511,6 +647,15 @@ export default function App() {
                           setConfirmed(false);
                         }}
                         onSave={saveRecording}
+                        onRatio={updateFrameRatio}
+                        onSurfacePoint={
+                          plane === 'calibrated' && surfacePoint >= 0
+                            ? placeSurfacePoint
+                            : undefined
+                        }
+                        overlay={
+                          plane === 'calibrated' ? <SurfaceOutline surface={surface} /> : undefined
+                        }
                       />
                     ) : selected ? (
                       mode === 'video' ? (
@@ -525,6 +670,9 @@ export default function App() {
                             }
                             onTimeUpdate={(event) => setSourceTime(event.currentTarget.currentTime)}
                             onSeeked={(event) => setSourceTime(event.currentTarget.currentTime)}
+                            onError={() =>
+                              setError('Source playback failed. Use an H.264 MP4 video.')
+                            }
                           />
                           {tracked && (
                             <div
@@ -546,7 +694,11 @@ export default function App() {
                           className="object-frame"
                           style={{ aspectRatio: frameRatio }}
                           onPointerDown={(event) => {
-                            if (busy) return;
+                            if (locked || !previewReady) return;
+                            if (plane === 'calibrated' && surfacePoint >= 0) {
+                              placeSurfacePoint(coordinates(event));
+                              return;
+                            }
                             drag.current = coordinates(event);
                             event.currentTarget.setPointerCapture(event.pointerId);
                           }}
@@ -572,16 +724,23 @@ export default function App() {
                           }}
                         >
                           <img
+                            key={selected}
                             src={`/api/demonstrations/${encodeURIComponent(selected)}/preview`}
                             alt="Selected demonstration first frame with object selection"
-                            onLoad={(event) =>
-                              setFrameRatio(
+                            onLoad={(event) => {
+                              const ratio =
                                 event.currentTarget.naturalWidth /
-                                  event.currentTarget.naturalHeight,
-                              )
-                            }
+                                event.currentTarget.naturalHeight;
+                              updateFrameRatio(ratio);
+                              setPreviewReady(true);
+                            }}
+                            onError={() => {
+                              setPreviewReady(false);
+                              setError('The selected demonstration preview could not be loaded.');
+                            }}
                             draggable={false}
                           />
+                          {plane === 'calibrated' && <SurfaceOutline surface={surface} />}
                           <div
                             className="roi"
                             style={{

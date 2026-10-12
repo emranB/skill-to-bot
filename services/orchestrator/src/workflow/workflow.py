@@ -190,6 +190,16 @@ class Workflow:
                     else "Simulation timeout; execution outcome is unknown. Inspect/reset simulation before another run."
                 ),
             )
+        except httpx.RequestError as error:
+            run.update(
+                status="failed",
+                error=(
+                    "Perception communication failed; no robot execution was requested. "
+                    if run["phase"] == "processing"
+                    else "Simulation communication failed; execution outcome is unknown. Inspect/reset simulation before another run. "
+                )
+                + type(error).__name__,
+            )
         except Exception as error:
             run.update(status="failed", error=str(error) or type(error).__name__)
         finally:

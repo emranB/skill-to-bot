@@ -24,6 +24,8 @@ export type Observation = {
   on_surface?: boolean;
   segmentation_source?: string;
   geometry_source?: string;
+  surface_position?: number[];
+  height_m?: number;
 };
 
 const phases = [
@@ -136,6 +138,7 @@ export default function RunStatus({
               <th>Surface</th>
               <th>Geometry</th>
               <th>Rectangle (x, y, w, h)</th>
+              {observations[0].surface_position && <th>Support (lateral, depth, height m)</th>}
             </tr>
           </thead>
           <tbody>
@@ -154,6 +157,13 @@ export default function RunStatus({
                 </td>
                 <td>{sample.geometry_source || 'Tracker'}</td>
                 <td>{sample.box.map((value) => value.toFixed(3)).join(', ')}</td>
+                {observations[0].surface_position && (
+                  <td>
+                    {[...sample.surface_position!, sample.height_m!]
+                      .map((value) => value.toFixed(3))
+                      .join(', ')}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

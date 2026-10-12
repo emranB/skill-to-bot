@@ -3,13 +3,16 @@ import json
 import logging
 import math
 import os
+from itertools import chain
 from pathlib import Path
 
+import cv2
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from jsonschema import Draft202012Validator, ValidationError
 from src.object_segmentation.object_segmentation import load_segmenter
 from src.object_tracking.object_tracking import track_object
+from src.support_surface.support_surface import assign_calibrated_surface, surface_pose
 from src.video_input.video_input import read_video
 
 logger = logging.getLogger("perception")
@@ -21,6 +24,7 @@ for key, value in CONFIG.items():
         raise ValueError(f"Invalid positive perception setting: {key}")
 CONTRACTS = Path(os.environ.get("CONTRACTS_DIR", str(ROOT.parent.parent / "contracts")))
 VALIDATOR = Draft202012Validator(json.loads((CONTRACTS / "skill.schema.json").read_text()))
+CALIBRATION_VALIDATOR = Draft202012Validator(VALIDATOR.schema["properties"]["calibration"])
 DATA = Path(os.environ.get("DATA_DIR", str(ROOT.parent.parent / "data"))).resolve()
 app = FastAPI(title="skill-to-bot perception", version="0.1.0")
 
@@ -46,23 +50,22 @@ def _true_runs(flags: np.ndarray) -> list[tuple[int, int]]:
 
 
 def extract_skill(samples: list[dict], calibration: dict, video: str, config: dict) -> dict:
-    if calibration.get("method") != "operator_planar" or calibration.get("plane") not in (
-        "front",
-        "table",
-    ):
-        raise ValueError("Explicit front or projected-table operator calibration is required.")
-    span = calibration.get("workspace_span", 0)
-    if not isinstance(span, (int, float)) or not math.isfinite(span) or not 0.05 <= span <= 0.5:
-        raise ValueError("Workspace span must be between 0.05 and 0.5 meters.")
+    validate_calibration(calibration, config)
+    span = calibration["workspace_span"]
     if len(samples) < config["min_samples"]:
         raise ValueError("Too few observations to extract a skill.")
-    uv = np.array([[s["u"], s["v"]] for s in samples])
+    calibrated = calibration["method"] == "support_plane"
+    if calibrated:
+        assign_calibrated_surface(samples, calibration, config)
+    uv = np.array([s["surface_position"] if calibrated else [s["u"], s["v"]] for s in samples])
     # A short median window suppresses single-frame tracker jumps without hiding sustained motion.
     smooth = np.array([np.median(uv[max(0, i - 2) : i + 3], axis=0) for i in range(len(uv))])
     start_uv = np.median(smooth[:5], axis=0)
     goal_uv = np.median(smooth[-5:], axis=0)
     motion = np.linalg.norm(smooth - start_uv, axis=1)
-    moving = np.flatnonzero(motion > config["motion_threshold"])
+    moving = np.flatnonzero(
+        motion > (config["surface_motion_tolerance"] if calibrated else config["motion_threshold"])
+    )
     if len(moving) < 5:
         raise ValueError("No sustained manipulation motion was detected.")
     if any("separation" not in sample for sample in samples):
@@ -79,7 +82,9 @@ def extract_skill(samples: list[dict], calibration: dict, video: str, config: di
             )
         raise ValueError("The selected object stays on the support surface.")
     grasp_index = max(0, min(lift_runs[0][0], int(moving[0])) - 1)
-    settled = np.linalg.norm(smooth - goal_uv, axis=1) < config["settle_threshold"]
+    settled = np.linalg.norm(smooth - goal_uv, axis=1) < (
+        config["surface_motion_tolerance"] if calibrated else config["settle_threshold"]
+    )
     place_index = len(samples) - 1
     for index in range(lift_runs[-1][1] + 1, len(samples) - config["settle_frames"]):
         window = slice(index, index + config["settle_frames"])
@@ -88,16 +93,14 @@ def extract_skill(samples: list[dict], calibration: dict, video: str, config: di
             break
     if place_index >= len(samples) - config["settle_frames"]:
         raise ValueError("No stable placement and release interval was observed.")
-    delta = (smooth[grasp_index : place_index + 1] - start_uv) * span
-    path = np.column_stack(
-        (
-            -delta[:, 1] if calibration["plane"] == "table" else np.zeros(len(delta)),
-            -delta[:, 0],
-        )
-    )
+    scale = span / calibration["surface"]["size"][0] if calibrated else span
+    delta = (smooth[grasp_index : place_index + 1] - start_uv) * scale
+    depth_sign = 1 if calibrated else -1 if calibration["plane"] == "table" else 0
+    path = np.column_stack((delta[:, 1] * depth_sign, -delta[:, 0]))
+    goal_delta = (goal_uv - start_uv) * scale
     goal = [
-        -float(goal_uv[1] - start_uv[1]) * span if calibration["plane"] == "table" else 0.0,
-        -float(goal_uv[0] - start_uv[0]) * span,
+        float(goal_delta[1] * depth_sign),
+        -float(goal_delta[0]),
         config["object_center_height"],
     ]
     path = simplify_transport(np.vstack(([0.0, 0.0], path, goal[:2])), config)
@@ -200,9 +203,16 @@ def process(request: dict):
         if path.parent != (DATA / directory).resolve():
             raise ValueError("Demonstration must stay inside its data directory.")
         calibration = request["calibration"]
-        samples = track_object(
-            read_video(path, CONFIG), calibration["roi"], CONFIG, load_segmenter()
-        )
+        validate_calibration(calibration)
+        frames = read_video(path, CONFIG)
+        if calibration["method"] == "support_plane":
+            frames = iter(frames)
+            first = next(frames)
+            height, width = first[1].shape[:2]
+            if abs(width / height - calibration["surface"]["image_aspect"]) > 0.01:
+                raise ValueError("Camera aspect changed. Recalibrate using the recorded frame.")
+            frames = chain([first], frames)
+        samples = track_object(frames, calibration["roi"], CONFIG, load_segmenter())
         skill = extract_skill(samples, calibration, video, CONFIG)
         logger.info("Extracted skill from %s using %s observations", video, len(samples))
         return {
@@ -212,11 +222,41 @@ def process(request: dict):
                 "The selection rectangle is a hint. Segmentation snaps it to the object mask.",
                 "Lift means separation from the support surface, not upward image motion.",
                 "A stationary monocular view can leave slide and lift ambiguous; weak evidence is rejected.",
-                "Transport follows the selected projected mapping and operator span; metric depth, perspective and rotation are not recovered.",
+                "Calibrated mapping requires measured support corners, fixed camera intrinsics, a rigid upright object and continuous foreground scale. Rotation, occlusion and arbitrary metric 3D are unsupported."
+                if calibration["method"] == "support_plane"
+                else "Transport follows the selected projected mapping and operator span; metric depth, perspective and rotation are not recovered.",
                 "Grasp and release are object-motion estimates, not hand-contact measurements.",
                 "Early motion is retained when lift evidence arrives later; its exact pickup/contact state is not measured.",
                 "Confidence is a heuristic, not a calibrated probability.",
             ],
         }
-    except (ValueError, KeyError, TypeError, ValidationError) as error:
+    except (ValueError, KeyError, TypeError, ValidationError, cv2.error, StopIteration) as error:
+        raise HTTPException(422, str(error)) from error
+
+
+def validate_calibration(calibration: dict, config: dict = CONFIG) -> None:
+    try:
+        CALIBRATION_VALIDATOR.validate(calibration)
+    except ValidationError as error:
+        raise ValueError(f"Invalid calibration: {error.message}") from error
+    roi = calibration["roi"]
+    if (
+        not all(math.isfinite(value) for value in roi)
+        or min(roi[2:]) < 0.01
+        or roi[0] + roi[2] > 1
+        or roi[1] + roi[3] > 1
+    ):
+        raise ValueError("Object rectangle must fit inside the video.")
+    if not math.isfinite(calibration["workspace_span"]):
+        raise ValueError("Workspace span must be finite.")
+    if calibration["method"] == "support_plane":
+        surface_pose(calibration["surface"], config)
+
+
+@app.post("/calibration")
+def check_calibration(calibration: dict):
+    try:
+        validate_calibration(calibration)
+        return {"status": "valid"}
+    except (ValueError, KeyError, TypeError, cv2.error) as error:
         raise HTTPException(422, str(error)) from error

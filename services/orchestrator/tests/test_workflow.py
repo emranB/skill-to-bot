@@ -60,23 +60,29 @@ def test_success_and_idempotency(tmp_path):
 
 
 @pytest.mark.parametrize("simulation_timeout", [False, True])
-def test_dependency_failure_and_restart(tmp_path, simulation_timeout):
+@pytest.mark.parametrize("error_type", [httpx.ReadTimeout, httpx.ReadError])
+def test_dependency_failure_and_restart(tmp_path, simulation_timeout, error_type):
     async def check():
         workflow = Workflow(tmp_path, CONFIG, "http://perception", "http://simulation")
         await workflow.client.aclose()
+        calls = []
 
         def unavailable(request):
+            calls.append(request.url.path)
             if simulation_timeout and request.url.path == "/process":
                 return httpx.Response(
                     200, json={"skill": SKILL, "observations": [], "limitations": []}
                 )
-            raise httpx.ReadTimeout("Perception timeout", request=request)
+            raise error_type("Connection lost", request=request)
 
         workflow.client = httpx.AsyncClient(transport=httpx.MockTransport(unavailable))
         run = await workflow.start("fixture.mp4", SKILL["calibration"], "timeout")
         await asyncio.gather(*workflow.tasks)
-        assert run["status"] == "failed" and "timeout" in run["error"]
+        message = "timeout" if error_type is httpx.ReadTimeout else "communication failed"
+        assert run["status"] == "failed" and message in run["error"]
         assert ("unknown" in run["error"]) == simulation_timeout
+        assert calls.count("/process") == 1
+        assert calls.count("/execute") == int(simulation_timeout)
         run["status"] = "running"
         workflow.save(run)
         await workflow.close()

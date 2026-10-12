@@ -10,7 +10,7 @@ This directory is the design source of truth for the `skill-to-bot` robot skill 
 - `architecture/architecture-final.md` - final envisioned architecture and expansion roadmap.
 - `architecture/development-rules.md` - mandatory implementation, naming, testing, UI, CSS, and code style contract.
 - [Build 01 checklist](../dev_plans/build-01.md) - build sequence, setup verification, and completion gates.
-- [Build 02 checklist](../dev_plans/build-02.md) - Tier 1 selection, support reasoning, ordered transport and cumulative verification.
+- [Build 02 checklist](../dev_plans/build-02.md) - Tier 1 selection, calibrated support reasoning, ordered transport and cumulative verification.
 
 ## Source of truth rule
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from fixtures.generate_video import generate_transport
+from fixtures.generate_video import generate_calibrated_transport, generate_transport
 
 pytestmark = [
     pytest.mark.integration,
@@ -128,4 +128,52 @@ def test_recorded_return_path_reaches_panda_in_order(tmp_path):
         assert len(measured) == len(path) - 1
         assert all(point["error_m"] <= 0.035 for point in measured)
         assert max(point["actual"][1] - run["result"]["initial"][1] for point in measured) > 0.05
+        assert client.post("/reset").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "path,endpoint",
+    [
+        ([[0, 0], [0, 0.08]], "/demonstrations"),
+        ([[0, 0], [0, -0.08]], "/live-demonstrations"),
+        ([[0, 0], [0, 0.08], [0.08, 0.08], [0.08, 0], [0.001, 0]], "/demonstrations"),
+    ],
+)
+def test_calibrated_lift_depth_and_order_reach_physics(tmp_path, path, endpoint):
+    video, calibration = generate_calibrated_transport(tmp_path / "calibrated.mp4", path)
+    with httpx.Client(base_url=BASE, timeout=15) as client:
+        checked = client.post("/calibration", json=calibration)
+        assert checked.status_code == 200, checked.text
+        with video.open("rb") as stream:
+            uploaded = client.post(
+                endpoint, files={"file": ("calibrated.mp4", stream, "video/mp4")}, timeout=105
+            )
+        assert uploaded.status_code == 201, uploaded.text
+        started = client.post(
+            "/runs",
+            json={
+                "video": uploaded.json()["name"],
+                "request_id": uuid.uuid4().hex,
+                "calibration": calibration,
+            },
+        )
+        assert started.status_code == 202, started.text
+        run_id = started.json()["run_id"]
+        deadline = time.monotonic() + 480
+        while time.monotonic() < deadline:
+            run = client.get("/runs/" + run_id).json()
+            if run["status"] != "running":
+                break
+            time.sleep(0.5)
+        assert run["status"] == "completed", run
+        expected = [[depth * 0.75, -lateral * 0.75] for lateral, depth in path]
+        actual = [point[:2] for point in run["skill"]["transport"]]
+        assert len(actual) == len(expected)
+        for point, truth in zip(actual, expected):
+            assert point == pytest.approx(truth, abs=0.008)
+        result = run["result"]
+        assert result["lifted"] and result["grasped"] and result["released"] and result["success"]
+        assert len(result["transport"]) == len(expected) - 1
+        assert all(point["error_m"] <= 0.035 for point in result["transport"])
+        assert result["position_error_m"] <= 0.035
         assert client.post("/reset").status_code == 200

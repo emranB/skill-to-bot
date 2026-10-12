@@ -7,8 +7,10 @@ import pytest
 from src.object_tracking.object_tracking import track_object
 from src.skill_extraction.skill_extraction import CONFIG, extract_skill
 from src.support_surface.support_surface import (
+    assign_calibrated_surface,
     contact_below_box,
     estimate_support,
+    surface_pose,
     surface_separation,
 )
 
@@ -214,3 +216,175 @@ def test_support_contact_survives_exposure_change():
     assert (
         contact_below_box(darker, box, support["reference"], CONFIG["support_color_distance"]) == 0
     )
+
+
+def calibrated_observations(path, elevation=55, azimuth=0, distance=1.2, lift=True, diagonal=False):
+    """Project known rigid motion through a pinhole camera, not screen-axis labels."""
+    size, focal = (320, 240), 340.0
+    camera = _camera(azimuth, elevation)
+    target = np.array([0.0, 0.6, 0.02])
+    camera = (target + (camera[0] - target) * distance / 1.2, *camera[1:])
+    corners = [(-0.2, 0.425, 0), (0.2, 0.425, 0), (0.2, 0.775, 0), (-0.2, 0.775, 0)]
+    surface = {
+        "corners": [
+            [p[0] / size[0], p[1] / size[1]]
+            for p in [_project(c, camera, focal, size) for c in corners]
+        ],
+        "size": [0.4, 0.35],
+        "horizontal_fov": math.degrees(2 * math.atan(size[0] / (2 * focal))),
+        "object_height": 0.1,
+        "image_aspect": size[0] / size[1],
+    }
+    calibration = {**CALIBRATION, "method": "support_plane", "plane": "table", "surface": surface}
+    motion = np.vstack([np.linspace(a, b, 20) for a, b in zip(path, path[1:])])
+    route = [(path[0], 0.0)] * 20
+    lift_height = 0.12 if lift and not diagonal else 0
+    route += [(path[0], height) for height in np.linspace(0, lift_height, 10)]
+    heights = (
+        np.sin(np.linspace(0, math.pi, len(motion))) * 0.12
+        if diagonal
+        else np.full(len(motion), lift_height)
+    )
+    route += list(zip(motion, heights))
+    route += [(path[-1], height) for height in np.linspace(lift_height, 0, 10)]
+    route += [(path[-1], 0.0)] * 30
+    initial = _project((path[0][0], 0.6 + path[0][1], 0.05), camera, focal, size)
+    samples = []
+    for index, (point, height) in enumerate(route):
+        u, v, depth = _project((point[0], 0.6 + point[1], 0.05 + height), camera, focal, size)
+        samples.append(
+            {
+                "time": index / 25,
+                "u": u / size[0],
+                "v": v / size[1],
+                "reference_uv": [u / size[0], v / size[1]],
+                "foreground_scale": initial[2] / depth,
+                "flow_valid": True,
+                "image_aspect": size[0] / size[1],
+            }
+        )
+    return samples, calibration
+
+
+MOTION_PATHS = [
+    [[0, 0], [0.1, 0]],
+    [[0, 0], [-0.1, 0]],
+    [[0, 0], [0, 0.1]],
+    [[0, 0], [0, -0.1]],
+    [[0, 0], [0, 0.1], [0, 0]],
+    [[0, 0], [0, -0.1], [0, 0]],
+    [[0, 0], [-0.1, 0], [-0.1, 0.1]],
+    [[0, 0], [0, 0.1], [0.1, 0.1]],
+    [[0, 0], [0.1, 0], [0.1, -0.1]],
+    [[0, 0], [0, 0.1], [0.1, 0.1], [0.1, -0.1], [-0.1, -0.1]],
+    [[0, 0], [0, 0.1], [0.1, 0.1], [0.1, 0], [0.001, 0]],
+]
+
+
+@pytest.mark.parametrize("path", MOTION_PATHS)
+def test_calibrated_direction_and_order_survive_lift(path):
+    samples, calibration = calibrated_observations(path, azimuth=35)
+    skill = extract_skill(samples, calibration, "calibrated.mp4", CONFIG)
+    expected = np.array([[depth * 0.75, -lateral * 0.75] for lateral, depth in path])
+    actual = np.array(skill["transport"])[:, :2]
+    assert actual.shape == expected.shape
+    assert np.allclose(actual, expected, atol=CONFIG["trajectory_tolerance"])
+    assert [event["type"] for event in skill["events"]] == [
+        "grasp",
+        "transport",
+        "place",
+        "release",
+    ]
+
+
+@pytest.mark.parametrize(
+    "azimuth,elevation,distance",
+    [
+        (0, 16, 1.2),
+        (-45, 35, 1.2),
+        (45, 35, 1.2),
+        (0, 55, 1.2),
+        (-45, 55, 1.2),
+        (45, 55, 1.2),
+        (0, 80, 0.8),
+        (30, 80, 0.8),
+        (0, 88, 0.8),
+    ],
+)
+def test_calibrated_lift_and_place_across_views(azimuth, elevation, distance):
+    samples, calibration = calibrated_observations([[0, 0], [0, 0.1]], elevation, azimuth, distance)
+    skill = extract_skill(samples, calibration, "view.mp4", CONFIG)
+    assert max(s["height_m"] for s in samples) == pytest.approx(0.12, abs=0.001)
+    assert samples[-1]["on_surface"] and abs(samples[-1]["height_m"]) < 0.001
+    assert skill["goal"][0] == pytest.approx(0.075, abs=0.001)
+
+
+@pytest.mark.parametrize("elevation", [16, 55, 80])
+def test_calibrated_depth_slides_are_not_lifts(elevation):
+    samples, calibration = calibrated_observations(
+        [[0, 0], [0, -0.1], [0, 0.1]], elevation=elevation, lift=False
+    )
+    with pytest.raises(ValueError, match="support surface"):
+        extract_skill(samples, calibration, "slide.mp4", CONFIG)
+    assert max(abs(sample["height_m"]) for sample in samples) < 0.001
+
+
+def test_calibrated_noise_and_supported_jitter():
+    samples, calibration = calibrated_observations([[0, 0], [0.1, 0]])
+    for index, sample in enumerate(samples):
+        sample["reference_uv"][0] += math.sin(index * 2) * 0.0005
+    skill = extract_skill(samples, calibration, "noise.mp4", CONFIG)
+    assert len(skill["transport"]) == 2
+    samples, calibration = calibrated_observations([[0, 0], [0.001, 0.001]], lift=False)
+    with pytest.raises(ValueError, match="motion"):
+        extract_skill(samples, calibration, "jitter.mp4", CONFIG)
+
+
+def test_degenerate_and_inconsistent_calibration_is_rejected():
+    _, calibration = calibrated_observations([[0, 0], [0.1, 0]])
+    surface = calibration["surface"]
+    with pytest.raises(ValueError, match="corners"):
+        surface_pose({**surface, "corners": [[0.2, 0.2]] * 4}, CONFIG)
+    with pytest.raises(ValueError, match="corners"):
+        surface_pose({**surface, "corners": [surface["corners"][i] for i in [0, 2, 1, 3]]}, CONFIG)
+    with pytest.raises(ValueError, match="disagree"):
+        surface_pose({**surface, "size": [0.4, 1.5]}, CONFIG)
+
+
+def test_calibrated_scale_loss_does_not_fabricate_height():
+    samples, calibration = calibrated_observations([[0, 0], [0.1, 0]])
+    samples[35]["flow_valid"] = False
+    with pytest.raises(ValueError, match="foreground scale"):
+        assign_calibrated_surface(samples, calibration, CONFIG)
+
+
+def test_steep_diagonal_lift_has_little_image_rise_but_true_support_separation():
+    samples, calibration = calibrated_observations(
+        [[0, 0], [0.1, 0]], elevation=88, distance=0.8, diagonal=True
+    )
+    skill = extract_skill(samples, calibration, "diagonal.mp4", CONFIG)
+    assert np.ptp([sample["v"] for sample in samples]) < 0.025
+    assert max(sample["height_m"] for sample in samples) > 0.115
+    assert skill["goal"][1] == pytest.approx(-0.075, abs=0.001)
+
+
+def test_invalid_surface_rejected_before_inference(monkeypatch):
+    from fastapi import HTTPException
+    from src.skill_extraction import skill_extraction as service
+
+    _, calibration = calibrated_observations([[0, 0], [0.1, 0]])
+
+    def unexpected(*args):
+        pytest.fail("Invalid calibration must not load the model or track the video.")
+
+    monkeypatch.setattr(service, "load_segmenter", unexpected)
+    malformed = {**calibration, "surface": {**calibration["surface"], "corners": [[0.2, 0.2]] * 4}}
+    with pytest.raises(HTTPException) as error:
+        service.process({"video": "invalid.mp4", "calibration": malformed})
+    assert error.value.status_code == 422 and "corners" in error.value.detail
+    monkeypatch.setattr(
+        service, "read_video", lambda *args: [(0, np.zeros((240, 240, 3), dtype=np.uint8))]
+    )
+    with pytest.raises(HTTPException) as error:
+        service.process({"video": "invalid.mp4", "calibration": calibration})
+    assert error.value.status_code == 422 and "aspect" in error.value.detail

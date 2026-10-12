@@ -216,6 +216,8 @@ Tests should be:
 
 A bug fix should include a regression test when practical.
 
+Calibrated motion tests must check support axes and ordered paths against known projection geometry, then exercise the saved/uploaded path and actual Panda physics. Do not validate depth from raw image Y, or count a projected command completion as physical-direction truth. Record assumed measurements separately from measured calibration; missing intrinsics/corners and unverified physical views remain open Build 02 gates. Run root physics/outage checks and browser execution serially against the shared stack. A rejected episode or communication failure must not trigger an automatic robot-command retry.
+
 Do not make a unit test depend on the full Docker stack unless the behavior is genuinely integration-level.
 
 ## 9. Service lifecycle contract

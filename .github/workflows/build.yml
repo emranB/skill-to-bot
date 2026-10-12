@@ -48,7 +48,7 @@ jobs:
           docker compose run --rm --no-deps perception python -m pytest tests -q
           docker compose run --rm --no-deps orchestrator python -m pytest tests -q
           docker compose run --rm --no-deps simulation python -m pytest tests -q
-      - name: Verify pipeline and failure recovery
+      - name: Verify calibrated depth, manipulation, and failure recovery
         env:
           RUN_INTEGRATION: "1"
         run: python -m pytest tests -q

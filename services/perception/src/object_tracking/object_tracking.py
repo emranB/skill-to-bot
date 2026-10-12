@@ -61,28 +61,28 @@ def _touches_edge(box, width, height):
 def _flow_box(previous, gray, points, box):
     """Estimate foreground motion with forward/backward checked optical flow."""
     if points is None or len(points) < 6:
-        return None, None
+        return None, None, None
     moved, status, _ = cv2.calcOpticalFlowPyrLK(previous, gray, points, None)
     if moved is None:
-        return None, None
+        return None, None, None
     returned, back_status, _ = cv2.calcOpticalFlowPyrLK(gray, previous, moved, None)
     if returned is None:
-        return None, None
+        return None, None, None
     good = (
         (status.ravel() > 0)
         & (back_status.ravel() > 0)
         & (np.linalg.norm(returned - points, axis=2).ravel() < 2)
     )
     if good.sum() < 6:
-        return None, None
+        return None, None, None
     transform, inliers = cv2.estimateAffinePartial2D(
         points[good], moved[good], method=cv2.RANSAC, ransacReprojThreshold=2
     )
     if transform is None or inliers.sum() < 6:
-        return None, None
+        return None, None, None
     scale = math.hypot(transform[0, 0], transform[0, 1])
     if not 0.8 <= scale <= 1.25:
-        return None, None
+        return None, None, None
     left, top, wide, high = box
     corners = np.array(
         [[left, top], [left + wide, top], [left, top + high], [left + wide, top + high]],
@@ -91,8 +91,8 @@ def _flow_box(previous, gray, points, box):
     mapped = cv2.transform(corners[None], transform)[0]
     low, high = mapped.min(axis=0), mapped.max(axis=0)
     if np.linalg.norm((low + high) / 2 - [left + wide / 2, top + box[3] / 2]) > max(box[2:]) / 2:
-        return None, None
-    return (*low, *(high - low)), moved[good][inliers.ravel() > 0]
+        return None, None, None
+    return (*low, *(high - low)), moved[good][inliers.ravel() > 0], transform
 
 
 def _foreground_points(gray, mask):
@@ -116,11 +116,15 @@ def track_object(frames, roi: list[float], config: dict, segmenter=None) -> list
     appearance = None
     previous_gray = None
     points = None
+    reference_point = None
+    foreground_scale = 1.0
+    foreground_rotation = 0.0
     for index, (timestamp, frame) in enumerate(frames):
         height, width = frame.shape[:2]
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         compatible = False
         geometry_source = "tracker"
+        flow_valid = False
         if initial_area is None:
             hint = (
                 int(round(roi[0] * width)),
@@ -138,6 +142,8 @@ def track_object(frames, roi: list[float], config: dict, segmenter=None) -> list
             points = _foreground_points(gray, _mask)
             appearance = _appearance(frame, _mask)
             box = _mask_bounds(_mask, width, height)
+            reference_point = np.array([box[0] + box[2] / 2, box[1] + box[3] / 2])
+            flow_valid = points is not None and len(points) >= 6
             support = estimate_support(frame, _mask, config)
             rest_contact = contact_below_box(
                 frame, box, support["reference"], config["support_color_distance"]
@@ -152,10 +158,16 @@ def track_object(frames, roi: list[float], config: dict, segmenter=None) -> list
             previous = box
             ok, box = tracker.update(frame)
             box = _clip_box(box if ok else previous, width, height)
-            flowed, points = _flow_box(previous_gray, gray, points, previous)
+            flowed, points, transform = _flow_box(previous_gray, gray, points, previous)
             if flowed is not None:
                 box = _clip_box(flowed, width, height)
                 geometry_source = "flow"
+                reference_point = transform[:, :2] @ reference_point + transform[:, 2]
+                foreground_scale *= math.hypot(transform[0, 0], transform[0, 1])
+                foreground_rotation += math.atan2(transform[1, 0], transform[0, 0])
+                flow_valid = abs(foreground_rotation) < math.radians(
+                    config["foreground_rotation_limit"]
+                )
             refresh = index % int(config["segment_interval"]) == 0 or (
                 points is None and index % int(config["max_lost_frames"]) == 0
             )
@@ -257,6 +269,13 @@ def track_object(frames, roi: list[float], config: dict, segmenter=None) -> list
                 "separation": 0.0,
                 "on_surface": True,
                 "support_confidence": support["confidence"],
+                "reference_uv": [
+                    float(reference_point[0] / width),
+                    float(reference_point[1] / height),
+                ],
+                "foreground_scale": float(foreground_scale),
+                "flow_valid": flow_valid and not _touches_edge(box, width, height),
+                "image_aspect": width / height,
             }
         )
     if len(samples) < config["min_samples"]:
