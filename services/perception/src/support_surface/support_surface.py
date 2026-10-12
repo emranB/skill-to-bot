@@ -24,7 +24,9 @@ def surface_separation(
 
 
 def _lab(frame) -> np.ndarray:
-    return cv2.cvtColor(frame, cv2.COLOR_BGR2LAB).astype(np.float32)
+    colors = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB).astype(np.float32)
+    colors[:, :, 0] -= np.median(colors[:, :, 0])
+    return colors
 
 
 def estimate_support(frame, mask: np.ndarray, config: dict) -> dict:
@@ -35,9 +37,7 @@ def estimate_support(frame, mask: np.ndarray, config: dict) -> dict:
     cutoff = np.percentile(ys, 70)
     band = mask.copy()
     band[: int(cutoff)] = False
-    dilated = (
-        cv2.dilate(band.astype(np.uint8), np.ones((7, 7), np.uint8), iterations=2) > 0
-    )
+    dilated = cv2.dilate(band.astype(np.uint8), np.ones((7, 7), np.uint8), iterations=2) > 0
     ring = dilated & ~mask
     if int(ring.sum()) < 20:
         return {"reference": None, "confidence": 0.0}
@@ -67,12 +67,8 @@ def assign_surface_state(samples: list[dict], config: dict) -> None:
     end_v = float(np.median([sample["v"] for sample in ending]))
     end_scale = float(np.median([sample["scale"] for sample in ending]))
     end_contact = float(np.median([sample["contact"] for sample in ending]))
-    end_motion = max(sample["u"] for sample in ending) - min(
-        sample["u"] for sample in ending
-    )
-    end_motion += max(sample["v"] for sample in ending) - min(
-        sample["v"] for sample in ending
-    )
+    end_motion = max(sample["u"] for sample in ending) - min(sample["u"] for sample in ending)
+    end_motion += max(sample["v"] for sample in ending) - min(sample["v"] for sample in ending)
     anchors_v = [start_v]
     anchors_scale = [start_scale]
     if end_contact >= start_contact - 0.3 and end_motion < 0.05:
@@ -90,9 +86,7 @@ def assign_surface_state(samples: list[dict], config: dict) -> None:
         if start_contact - sample["contact"] >= 0.45:
             separation = max(
                 separation,
-                surface_separation(
-                    1.0, max(above, 0.03), sample["contact"], start_contact, config
-                ),
+                surface_separation(1.0, max(above, 0.03), sample["contact"], start_contact, config),
             )
         sample["separation"] = float(separation)
         sample["on_surface"] = sample["separation"] < config["separation_threshold"]
@@ -108,6 +102,6 @@ def contact_below_box(frame, box: tuple, reference, distance: float) -> float:
     if sample_y >= height - 1 or wide < 2:
         return 0.0
     xs = np.linspace(max(0, left), min(width - 1, left + wide - 1), 11).astype(int)
-    row = _lab(frame[sample_y : sample_y + 1])[0, xs]
+    row = _lab(frame)[sample_y, xs]
     distances = np.linalg.norm(row - np.asarray(reference, dtype=np.float32), axis=1)
     return float(np.mean(distances <= distance))

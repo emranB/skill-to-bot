@@ -135,6 +135,18 @@ class Workflow:
                 (directory / name).write_text(json.dumps(value, indent=2))
             run["skill"] = perception["skill"]
             run["limitations"] = perception["limitations"]
+            observations = perception["observations"]
+            if observations and observations[0].get("segmentation_source"):
+                source = observations[0]["segmentation_source"]
+                refreshed = sum(sample.get("geometry_source") == "yolo" for sample in observations)
+                self.record(
+                    run, f"Object acquisition: {source}. Mask-based geometry updates: {refreshed}."
+                )
+            if perception["skill"].get("transport"):
+                self.record(
+                    run,
+                    f"Transport: {len(perception['skill']['transport']) - 1} ordered waypoint targets.",
+                )
             run["phase"] = "executing"
             self.record(run, "Skill extracted. Starting Panda simulation.")
             response = await self.client.post(

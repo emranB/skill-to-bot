@@ -35,13 +35,19 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Check source and build
         run: |
-          ruff check services tests
-          ruff format --check services tests
+          python -m ruff --version
+          python -m ruff check services tests
+          python -m ruff format --check services tests
           npm run format:check --prefix apps/web
           npm run build --prefix apps/web
           docker compose config --quiet
           mkdir -p data/runs data/live_demos
           bash build-and-run.sh
+      - name: Verify service regressions and production segmentation
+        run: |
+          docker compose run --rm --no-deps perception python -m pytest tests -q
+          docker compose run --rm --no-deps orchestrator python -m pytest tests -q
+          docker compose run --rm --no-deps simulation python -m pytest tests -q
       - name: Verify pipeline and failure recovery
         env:
           RUN_INTEGRATION: "1"

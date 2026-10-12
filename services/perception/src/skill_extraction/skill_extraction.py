@@ -20,19 +20,14 @@ for key, value in CONFIG.items():
     if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
         raise ValueError(f"Invalid positive perception setting: {key}")
 CONTRACTS = Path(os.environ.get("CONTRACTS_DIR", str(ROOT.parent.parent / "contracts")))
-VALIDATOR = Draft202012Validator(
-    json.loads((CONTRACTS / "skill.schema.json").read_text())
-)
+VALIDATOR = Draft202012Validator(json.loads((CONTRACTS / "skill.schema.json").read_text()))
 DATA = Path(os.environ.get("DATA_DIR", str(ROOT.parent.parent / "data"))).resolve()
 app = FastAPI(title="skill-to-bot perception", version="0.1.0")
 
 
 def _median_series(values: np.ndarray, radius: int) -> np.ndarray:
     return np.array(
-        [
-            np.median(values[max(0, i - radius) : i + radius + 1])
-            for i in range(len(values))
-        ]
+        [np.median(values[max(0, i - radius) : i + radius + 1]) for i in range(len(values))]
     )
 
 
@@ -50,28 +45,20 @@ def _true_runs(flags: np.ndarray) -> list[tuple[int, int]]:
     return runs
 
 
-def extract_skill(
-    samples: list[dict], calibration: dict, video: str, config: dict
-) -> dict:
-    if (
-        calibration.get("method") != "operator_planar"
-        or calibration.get("plane") != "front"
+def extract_skill(samples: list[dict], calibration: dict, video: str, config: dict) -> dict:
+    if calibration.get("method") != "operator_planar" or calibration.get("plane") not in (
+        "front",
+        "table",
     ):
-        raise ValueError("Explicit front-plane operator calibration is required.")
+        raise ValueError("Explicit front or projected-table operator calibration is required.")
     span = calibration.get("workspace_span", 0)
-    if (
-        not isinstance(span, (int, float))
-        or not math.isfinite(span)
-        or not 0.05 <= span <= 0.5
-    ):
+    if not isinstance(span, (int, float)) or not math.isfinite(span) or not 0.05 <= span <= 0.5:
         raise ValueError("Workspace span must be between 0.05 and 0.5 meters.")
     if len(samples) < config["min_samples"]:
         raise ValueError("Too few observations to extract a skill.")
     uv = np.array([[s["u"], s["v"]] for s in samples])
     # A short median window suppresses single-frame tracker jumps without hiding sustained motion.
-    smooth = np.array(
-        [np.median(uv[max(0, i - 2) : i + 3], axis=0) for i in range(len(uv))]
-    )
+    smooth = np.array([np.median(uv[max(0, i - 2) : i + 3], axis=0) for i in range(len(uv))])
     start_uv = np.median(smooth[:5], axis=0)
     goal_uv = np.median(smooth[-5:], axis=0)
     motion = np.linalg.norm(smooth - start_uv, axis=1)
@@ -79,17 +66,11 @@ def extract_skill(
     if len(moving) < 5:
         raise ValueError("No sustained manipulation motion was detected.")
     if any("separation" not in sample for sample in samples):
-        raise ValueError(
-            "Support-surface evidence is required to judge lift and placement."
-        )
-    separation = _median_series(
-        np.array([float(sample["separation"]) for sample in samples]), 2
-    )
+        raise ValueError("Support-surface evidence is required to judge lift and placement.")
+    separation = _median_series(np.array([float(sample["separation"]) for sample in samples]), 2)
     lifted = separation >= config["separation_threshold"]
     lift_runs = [
-        run
-        for run in _true_runs(lifted)
-        if run[1] - run[0] + 1 >= config["separation_frames"]
+        run for run in _true_runs(lifted) if run[1] - run[0] + 1 >= config["separation_frames"]
     ]
     if not lift_runs:
         if float(np.max(separation)) >= config["separation_ambiguous"]:
@@ -97,7 +78,7 @@ def extract_skill(
                 "Not enough evidence that the object separated from the support surface."
             )
         raise ValueError("The selected object stays on the support surface.")
-    grasp_index = max(0, lift_runs[0][0] - 1)
+    grasp_index = max(0, min(lift_runs[0][0], int(moving[0])) - 1)
     settled = np.linalg.norm(smooth - goal_uv, axis=1) < config["settle_threshold"]
     place_index = len(samples) - 1
     for index in range(lift_runs[-1][1] + 1, len(samples) - config["settle_frames"]):
@@ -107,9 +88,19 @@ def extract_skill(
             break
     if place_index >= len(samples) - config["settle_frames"]:
         raise ValueError("No stable placement and release interval was observed.")
-    goal_y = -float(goal_uv[0] - start_uv[0]) * span
-    if abs(goal_y) < config["min_transfer_distance"]:
-        raise ValueError("Demonstration has insufficient sideways transport.")
+    delta = (smooth[grasp_index : place_index + 1] - start_uv) * span
+    path = np.column_stack(
+        (
+            -delta[:, 1] if calibration["plane"] == "table" else np.zeros(len(delta)),
+            -delta[:, 0],
+        )
+    )
+    goal = [
+        -float(goal_uv[1] - start_uv[1]) * span if calibration["plane"] == "table" else 0.0,
+        -float(goal_uv[0] - start_uv[0]) * span,
+        config["object_center_height"],
+    ]
+    path = simplify_transport(np.vstack(([0.0, 0.0], path, goal[:2])), config)
     transport_index = min(grasp_index + 2, place_index - 1)
     events = [
         {"type": "grasp", "time": samples[grasp_index]["time"]},
@@ -129,7 +120,8 @@ def extract_skill(
         "frame": "world",
         "units": "meters",
         "start": [0.0, 0.0, config["object_center_height"]],
-        "goal": [0.0, goal_y, config["object_center_height"]],
+        "goal": goal,
+        "transport": [[float(x), float(y), config["object_center_height"]] for x, y in path],
         "approach_height": config["approach_clearance"],
         "events": events,
         "calibration": calibration,
@@ -137,6 +129,44 @@ def extract_skill(
     }
     VALIDATOR.validate(skill)
     return skill
+
+
+def simplify_transport(points, config: dict) -> np.ndarray:
+    """Simplify against finite segments so collinear reversals cannot disappear."""
+    points = np.asarray(points, dtype=float)
+    keep = {0, len(points) - 1}
+    pending = [(0, len(points) - 1)]
+    while pending:
+        first, last = pending.pop()
+        if last - first <= 1:
+            continue
+        segment = points[first : last + 1]
+        direction = segment[-1] - segment[0]
+        length_squared = float(direction @ direction)
+        fraction = (
+            np.clip((segment - segment[0]) @ direction / length_squared, 0, 1)
+            if length_squared
+            else np.zeros(len(segment))
+        )
+        distances = np.linalg.norm(segment - (segment[0] + fraction[:, None] * direction), axis=1)
+        index = int(np.argmax(distances))
+        if distances[index] <= config["trajectory_tolerance"]:
+            continue
+        middle = first + index
+        keep.add(middle)
+        if len(keep) > 32:
+            raise ValueError("Transport is too complex for the bounded 32-waypoint execution.")
+        pending.extend([(first, middle), (middle, last)])
+    path = points[sorted(keep)]
+    if (
+        len(path) < 2
+        or np.linalg.norm(np.diff(path, axis=0), axis=1).sum() < config["min_transfer_distance"]
+    ):
+        raise ValueError("Demonstration has insufficient transport beyond tracking jitter.")
+    if len(path) > 32:
+        raise ValueError("Transport is too complex for the bounded 32-waypoint execution.")
+    path[0], path[-1] = points[0], points[-1]
+    return path
 
 
 @app.get("/health")
@@ -174,9 +204,7 @@ def process(request: dict):
             read_video(path, CONFIG), calibration["roi"], CONFIG, load_segmenter()
         )
         skill = extract_skill(samples, calibration, video, CONFIG)
-        logger.info(
-            "Extracted skill from %s using %s observations", video, len(samples)
-        )
+        logger.info("Extracted skill from %s using %s observations", video, len(samples))
         return {
             "skill": skill,
             "observations": samples,
@@ -184,8 +212,9 @@ def process(request: dict):
                 "The selection rectangle is a hint. Segmentation snaps it to the object mask.",
                 "Lift means separation from the support surface, not upward image motion.",
                 "A stationary monocular view can leave slide and lift ambiguous; weak evidence is rejected.",
-                "Sideways goal mapping uses the operator span. Metric depth and rotation are not recovered.",
+                "Transport follows the selected projected mapping and operator span; metric depth, perspective and rotation are not recovered.",
                 "Grasp and release are object-motion estimates, not hand-contact measurements.",
+                "Early motion is retained when lift evidence arrives later; its exact pickup/contact state is not measured.",
                 "Confidence is a heuristic, not a calibrated probability.",
             ],
         }

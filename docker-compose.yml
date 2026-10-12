@@ -36,7 +36,7 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/ready', timeout=3)"]
       interval: 10s
       timeout: 5s
-      start_period: 30s
+      start_period: 120s
       retries: 6
   orchestrator:
     build:

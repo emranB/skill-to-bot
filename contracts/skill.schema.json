@@ -57,6 +57,17 @@
       "minimum": 0.04,
       "maximum": 0.25
     },
+    "transport": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3,
+        "items": { "type": "number", "minimum": -2, "maximum": 2 }
+      }
+    },
     "events": {
       "type": "array",
       "minItems": 4,
@@ -156,7 +167,7 @@
           "maximum": 0.5
         },
         "plane": {
-          "const": "front"
+          "enum": ["front", "table"]
         },
         "roi": {
           "type": "array",

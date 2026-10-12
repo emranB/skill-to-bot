@@ -1,5 +1,6 @@
 # Purpose: Define shared Python formatting and test discovery conventions.
 [tool.ruff]
+required-version = "==0.11.13"
 line-length = 100
 target-version = "py311"
 

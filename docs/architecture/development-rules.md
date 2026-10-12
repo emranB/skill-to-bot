@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-This document is the implementation contract for humans and coding agents working on `skill-to-bot`. Architecture 01 controls active scope and ownership, this document controls development practice, and Architecture Final is a roadmap only. Any override must be explicitly recorded in Architecture 01; a roadmap statement never overrides this contract.
+This document is the implementation contract for contributors working on `skill-to-bot`. Architecture 01 controls active scope and ownership, this document controls development practice, and Architecture Final is a roadmap only. Any override must be explicitly recorded in Architecture 01; a roadmap statement never overrides this contract.
 
 The priorities are clarity, consistency, traceability, maintainability, and a polished but simple user experience.
 
@@ -69,6 +69,8 @@ Names must describe purpose. Avoid unexplained abbreviations.
 - Do not create wrapper components with no behavioral or visual purpose.
 
 Use automatic formatters where appropriate, but formatter configuration must match these rules.
+
+Install `requirements-dev.txt` into the project environment. Run `python -m ruff check services tests` and `python -m ruff format --check services tests` with that environment's Python, from the repository root. Apply formatting with `python -m ruff format services tests` before committing. Ruff is pinned to 0.11.13 in both the development requirements and `pyproject.toml`; update both together. A different global formatter must not silently change repository formatting.
 
 ## 4. Comments and documentation
 
@@ -263,20 +265,20 @@ Do not log secrets or full environment contents.
 
 ## 12. UI design principles
 
-The interface should feel closer to a polished Google product than an engineering control panel.
+Use a compact, readable manipulation workspace with paired source and robot media.
 
 Core characteristics:
 
 - light theme
 - white or very lightly tinted page background
-- large readable headings
-- generous whitespace
-- large clear feature surfaces
+- clear, compact headings
+- consistent spacing
+- unframed page sections and genuinely framed media/tools
 - minimal text
-- large primary controls
+- touch-sized primary controls
 - subtle borders
 - restrained shadows
-- rounded corners
+- restrained 4-8px corners
 - one obvious primary action per screen or section
 - status shown clearly without visual noise
 - yellow Confirm Mapping action with an exclamation icon, replaced by Run Demo after confirmation
@@ -286,7 +288,7 @@ Core characteristics:
 
 Avoid:
 
-- dense dashboards
+- unstructured dense dashboards
 - tiny text
 - excessive cards inside cards
 - heavy gradients
@@ -354,7 +356,6 @@ Default typography scale:
 --font-size-xl: 22px;
 --font-size-2xl: 28px;
 --font-size-3xl: 36px;
---font-size-hero: 48px;
 ```
 
 Recommended usage:
@@ -364,7 +365,7 @@ Recommended usage:
 - emphasized body or small card title: 18px
 - section title: 22 to 28px
 - page title: 36px
-- portfolio hero: up to 48px on desktop
+- workspace headings: 22 to 28px; do not use hero-scale type in tools or panels
 
 Use primarily 400, 500, and 600 font weights. Avoid unnecessary 700 to 900 weight text.
 
@@ -390,7 +391,7 @@ Defaults:
 
 - normal component gap: 16px
 - card padding: 24px
-- major section gap: 48 to 64px
+- major section gap: 24 to 32px
 - desktop content maximum width: approximately 1200px
 - primary button height: 48 to 52px
 - standard input height: 44 to 48px
@@ -407,14 +408,13 @@ border: 1px solid var(--color-border);
 Radius scale:
 
 ```css
---radius-sm: 8px;
---radius-md: 12px;
---radius-lg: 16px;
---radius-xl: 24px;
+--radius-sm: 4px;
+--radius-md: 6px;
+--radius-lg: 8px;
 --radius-pill: 999px;
 ```
 
-Use `16px` for major cards by default.
+Use at most `8px` for repeated items, framed tools and dialogs. Page sections are not floating cards, and cards must not contain other cards.
 
 Shadows should be subtle and uncommon:
 
@@ -432,7 +432,7 @@ Primary buttons:
 - white text
 - 48 to 52px high
 - medium font weight
-- 12px radius
+- at most 8px radius
 - clear hover and focus states
 
 Secondary buttons:

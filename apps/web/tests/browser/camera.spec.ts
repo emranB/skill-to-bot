@@ -12,7 +12,7 @@ async function syntheticCamera(page: Page) {
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
       value: async () => {
         const image = new Image();
-        image.src = '/api/demonstrations/pop-can-pick-up-1.mp4/preview';
+        image.src = '/api/demonstrations/pop-can-pick-up-right-to-left-1.mp4/preview';
         await image.decode();
         const canvas = document.createElement('canvas');
         canvas.width = 640;
@@ -88,7 +88,7 @@ test('camera permission failure leaves the video library usable', async ({ page 
   await page.getByRole('button', { name: 'Live Camera' }).click();
   await expect(page.getByRole('alert')).toContainText('Camera permission was denied');
   await expect(page.getByRole('button', { name: 'Start Recording' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Can pickup 1' }).click();
+  await page.getByRole('button', { name: 'Can pickup right to left 1' }).click();
   await expect(
     page.getByAltText('Selected demonstration first frame with object selection'),
   ).toBeVisible();
@@ -137,7 +137,7 @@ test('discard and save failure return safely to recording without saved input', 
   await page.getByRole('button', { name: 'Reconnect' }).click();
   await expect(page.getByRole('button', { name: 'Confirm Mapping' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start Recording' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Can pickup 1' }).click();
+  await page.getByRole('button', { name: 'Can pickup right to left 1' }).click();
   expect(
     await page.evaluate(() =>
       (window as unknown as CameraWindow).cameraTestStream

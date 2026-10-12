@@ -250,7 +250,7 @@ export default function LiveCamera({ roi, confirmed, disabled, onMapping, onLock
               height: `${roi[3] * 100}%`,
             }}
           >
-            <span>Object</span>
+            <span>Hint</span>
           </div>
         )}
         {!ready && !error && (

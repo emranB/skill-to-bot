@@ -6,7 +6,11 @@ import numpy as np
 import pytest
 from src.object_tracking.object_tracking import track_object
 from src.skill_extraction.skill_extraction import CONFIG, extract_skill
-from src.support_surface.support_surface import surface_separation
+from src.support_surface.support_surface import (
+    contact_below_box,
+    estimate_support,
+    surface_separation,
+)
 
 CALIBRATION = {
     "method": "operator_planar",
@@ -25,26 +29,11 @@ VIEWPOINTS = [
 
 
 def test_plane_coupling_accepts_lifts_and_rejects_slides():
-    assert (
-        surface_separation(1.0, 0.12, 1.0, 1.0, CONFIG)
-        >= CONFIG["separation_threshold"]
-    )
-    assert (
-        surface_separation(1.16, 0.01, 1.0, 1.0, CONFIG)
-        >= CONFIG["separation_threshold"]
-    )
-    assert (
-        surface_separation(0.84, 0.12, 1.0, 1.0, CONFIG)
-        < CONFIG["separation_ambiguous"]
-    )
-    assert (
-        surface_separation(1.14, -0.11, 1.0, 1.0, CONFIG)
-        < CONFIG["separation_ambiguous"]
-    )
-    assert (
-        surface_separation(1.02, 0.03, 0.2, 0.9, CONFIG)
-        >= CONFIG["separation_threshold"]
-    )
+    assert surface_separation(1.0, 0.12, 1.0, 1.0, CONFIG) >= CONFIG["separation_threshold"]
+    assert surface_separation(1.16, 0.01, 1.0, 1.0, CONFIG) >= CONFIG["separation_threshold"]
+    assert surface_separation(0.84, 0.12, 1.0, 1.0, CONFIG) < CONFIG["separation_ambiguous"]
+    assert surface_separation(1.14, -0.11, 1.0, 1.0, CONFIG) < CONFIG["separation_ambiguous"]
+    assert surface_separation(1.02, 0.03, 0.2, 0.9, CONFIG) >= CONFIG["separation_threshold"]
 
 
 def _camera(azimuth_deg: float, elevation_deg: float):
@@ -167,9 +156,7 @@ def test_vertical_lift_from_supported_viewpoints(name, azimuth, elevation):
         "place",
         "release",
     ]
-    assert all(
-        samples[i]["object_id"] == samples[0]["object_id"] for i in range(len(samples))
-    )
+    assert all(samples[i]["object_id"] == samples[0]["object_id"] for i in range(len(samples)))
 
 
 def test_slanted_lift_is_a_lift():
@@ -179,15 +166,11 @@ def test_slanted_lift_is_a_lift():
     assert skill["events"][2]["type"] == "place"
 
 
-@pytest.mark.parametrize(
-    ("name", "azimuth", "elevation"), [("front", 0, 16), ("elevated", 0, 55)]
-)
+@pytest.mark.parametrize(("name", "azimuth", "elevation"), [("front", 0, 16), ("elevated", 0, 55)])
 def test_sliding_stays_on_the_support(name, azimuth, elevation):
     samples, _truth, hint = _track(azimuth, elevation, "slide")
     with pytest.raises(ValueError, match="support surface|evidence"):
-        extract_skill(
-            samples, {**CALIBRATION, "roi": hint}, f"{name}-slide.mp4", CONFIG
-        )
+        extract_skill(samples, {**CALIBRATION, "roi": hint}, f"{name}-slide.mp4", CONFIG)
 
 
 def test_rough_hint_snaps_and_keeps_identity():
@@ -205,7 +188,29 @@ def test_rough_hint_snaps_and_keeps_identity():
     assert intersection / union > 0.35
     truth_u = [box[0] + box[2] / 2 for box in truth]
     tracked_u = [sample["u"] for sample in samples]
+    assert abs(float(np.mean(np.array(tracked_u) - np.array(truth_u[: len(tracked_u)])))) < 0.08
+
+
+def test_repeated_tracking_keeps_the_same_observations():
+    frames, truth = render_motion(0, 20, "lift")
+    hint = _hint(truth[0])
+    first = track_object(frames, hint, CONFIG)
+    second = track_object(frames, hint, CONFIG)
+    assert first == second
+
+
+def test_support_contact_survives_exposure_change():
+    frame = np.full((100, 120, 3), 120, dtype=np.uint8)
+    mask = np.zeros((100, 120), dtype=bool)
+    mask[20:60, 40:70] = True
+    frame[mask] = (30, 40, 200)
+    support = estimate_support(frame, mask, CONFIG)
+    darker = (frame.astype(float) * 0.55).astype(np.uint8)
+    box = (40, 20, 30, 40)
     assert (
-        abs(float(np.mean(np.array(tracked_u) - np.array(truth_u[: len(tracked_u)]))))
-        < 0.08
+        contact_below_box(darker, box, support["reference"], CONFIG["support_color_distance"]) == 1
+    )
+    darker[63:64, 40:70] = (10, 180, 10)
+    assert (
+        contact_below_box(darker, box, support["reference"], CONFIG["support_color_distance"]) == 0
     )

@@ -15,13 +15,15 @@ export type Run = {
   logs?: { time: number; message: string }[];
   video_available?: boolean;
 };
-type Observation = {
+export type Observation = {
   time: number;
   u: number;
   v: number;
   confidence: number;
   box: number[];
   on_surface?: boolean;
+  segmentation_source?: string;
+  geometry_source?: string;
 };
 
 const phases = [
@@ -36,7 +38,13 @@ const phases = [
   ['retreat', 'Retreat'],
 ];
 
-export default function RunStatus({ run }: { run?: Run }) {
+export default function RunStatus({
+  run,
+  onObservations,
+}: {
+  run?: Run;
+  onObservations: (samples: Observation[]) => void;
+}) {
   const [tab, setTab] = useState('Logs');
   const [observations, setObservations] = useState<Observation[]>([]);
   const [error, setError] = useState('');
@@ -45,6 +53,7 @@ export default function RunStatus({ run }: { run?: Run }) {
 
   useEffect(() => {
     setObservations([]);
+    onObservations([]);
     setError('');
     if (!runId || !hasSkill) return;
     const controller = new AbortController();
@@ -53,12 +62,15 @@ export default function RunStatus({ run }: { run?: Run }) {
         if (!response.ok) throw new Error('Observations could not be loaded.');
         return response.json();
       })
-      .then(setObservations)
+      .then((samples) => {
+        setObservations(samples);
+        onObservations(samples);
+      })
       .catch((problem) => {
         if (!controller.signal.aborted) setError(problem.message);
       });
     return () => controller.abort();
-  }, [runId, hasSkill]);
+  }, [runId, hasSkill, onObservations]);
 
   const phaseIndex = phases.findIndex(([name]) => name === run?.phase);
   const completed = run?.status === 'completed';
@@ -108,6 +120,12 @@ export default function RunStatus({ run }: { run?: Run }) {
     return (
       <>
         <p className="muted">{observations.length} tracked frames · Normalized image coordinates</p>
+        {observations[0]?.segmentation_source && (
+          <p className="muted">
+            Acquisition:{' '}
+            {observations[0].segmentation_source === 'yolo' ? 'YOLO' : 'GrabCut fallback'}
+          </p>
+        )}
         <table>
           <thead>
             <tr>
@@ -116,6 +134,7 @@ export default function RunStatus({ run }: { run?: Run }) {
               <th>Y</th>
               <th>Confidence</th>
               <th>Surface</th>
+              <th>Geometry</th>
               <th>Rectangle (x, y, w, h)</th>
             </tr>
           </thead>
@@ -133,6 +152,7 @@ export default function RunStatus({ run }: { run?: Run }) {
                       ? 'On surface'
                       : 'Lifted'}
                 </td>
+                <td>{sample.geometry_source || 'Tracker'}</td>
                 <td>{sample.box.map((value) => value.toFixed(3)).join(', ')}</td>
               </tr>
             ))}

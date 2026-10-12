@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fixtures.generate_video import generate_transport
 
 pytestmark = [
     pytest.mark.integration,
@@ -28,7 +29,7 @@ def test_complete_pipeline():
     with httpx.Client(base_url=BASE, timeout=10) as client:
         assert client.get("/ready").status_code == 200
         payload = {
-            "video": "pop-can-pick-up-1.mp4",
+            "video": "pop-can-pick-up-right-to-left-1.mp4",
             "calibration": CALIBRATION,
             "request_id": uuid.uuid4().hex,
         }
@@ -48,6 +49,11 @@ def test_complete_pipeline():
         assert run["result"]["position_error_m"] <= 0.035
         assert client.get(f"/runs/{run_id}/artifacts/skill.json").status_code == 200
         assert len(client.get(f"/runs/{run_id}/artifacts/simulation.mp4").content) > 1000
+        observations = client.get(f"/runs/{run_id}/artifacts/observations.json").json()
+        held = min(observations, key=lambda sample: abs(sample["time"] - 7))
+        assert observations[0]["segmentation_source"] == "yolo"
+        assert 0.08 < held["u"] < 0.18, "The held object must not switch to the demonstrator."
+        assert held["box"][0] < 0.1 and held["box"][2] < 0.25
         assert client.post("/reset").status_code == 200
 
 
@@ -82,10 +88,44 @@ def test_invalid_video_and_selection():
             client.post(
                 "/runs",
                 json={
-                    "video": "pop-can-pick-up-1.mp4",
+                    "video": "pop-can-pick-up-right-to-left-1.mp4",
                     "calibration": invalid,
                     "request_id": uuid.uuid4().hex,
                 },
             ).status_code
             == 422
         )
+
+
+def test_recorded_return_path_reaches_panda_in_order(tmp_path):
+    video = generate_transport(tmp_path / "return.mp4")
+    with httpx.Client(base_url=BASE, timeout=15) as client:
+        with video.open("rb") as stream:
+            response = client.post(
+                "/demonstrations", files={"file": ("return.mp4", stream, "video/mp4")}
+            )
+        assert response.status_code == 201, response.text
+        saved = response.json()["name"]
+        payload = {
+            "video": saved,
+            "request_id": uuid.uuid4().hex,
+            "calibration": {**CALIBRATION, "roi": [0.65, 0.2, 0.22, 0.58]},
+        }
+        started = client.post("/runs", json=payload)
+        assert started.status_code == 202, started.text
+        run_id = started.json()["run_id"]
+        deadline = time.monotonic() + 480
+        while time.monotonic() < deadline:
+            run = client.get("/runs/" + run_id).json()
+            if run["status"] != "running":
+                break
+            time.sleep(0.5)
+        assert run["status"] == "completed", run
+        path = run["skill"]["transport"]
+        assert len(path) >= 3 and abs(path[-1][1]) < 0.02
+        assert max(point[1] for point in path) > 0.07
+        measured = run["result"]["transport"]
+        assert len(measured) == len(path) - 1
+        assert all(point["error_m"] <= 0.035 for point in measured)
+        assert max(point["actual"][1] - run["result"]["initial"][1] for point in measured) > 0.05
+        assert client.post("/reset").status_code == 200

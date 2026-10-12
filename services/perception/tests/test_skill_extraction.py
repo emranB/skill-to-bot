@@ -1,7 +1,7 @@
 # Purpose: Verify motion-derived intent, event order, and rejection of insufficient evidence.
 import numpy as np
 import pytest
-from src.skill_extraction.skill_extraction import CONFIG, extract_skill
+from src.skill_extraction.skill_extraction import CONFIG, extract_skill, simplify_transport
 
 CALIBRATION = {
     "method": "operator_planar",
@@ -105,3 +105,47 @@ def test_temporal_spikes_do_not_move_placement():
         "place",
         "release",
     ]
+
+
+@pytest.mark.parametrize(
+    "corners",
+    [
+        [[0, 0], [0.1, 0]],
+        [[0, 0], [0.1, 0], [0.1, 0.1]],
+        [[0, 0], [0.1, 0], [0, 0]],
+        [[0, 0], [0.1, 0], [0.1, 0.1], [-0.1, 0.1], [-0.1, 0]],
+        [[0, 0], [0.1, 0], [0.1, 0.1], [0, 0.1], [0.001, 0]],
+    ],
+)
+def test_ordered_transport_preserves_excursions(corners):
+    points = np.vstack([np.linspace(a, b, 20) for a, b in zip(corners, corners[1:])])
+    result = simplify_transport(points, CONFIG)
+    assert np.allclose(result, corners, atol=0.008)
+
+
+def test_transport_removes_jitter_without_inventing_turns():
+    x = np.linspace(0, 0.12, 100)
+    points = np.column_stack((x, np.sin(x * 500) * 0.001))
+    assert len(simplify_transport(points, CONFIG)) == 2
+    with pytest.raises(ValueError, match="jitter"):
+        simplify_transport(points * 0.01, CONFIG)
+
+
+def test_return_to_origin_is_not_zero_transport():
+    samples = observations()
+    for index, sample in enumerate(samples):
+        sample["u"] = 0.6 - 0.3 * max(0, 1 - abs(index - 40) / 20)
+    skill = extract_skill(samples, CALIBRATION, "return.mp4", CONFIG)
+    assert skill["goal"][1] == pytest.approx(0)
+    assert len(skill["transport"]) >= 3
+    assert max(point[1] for point in skill["transport"]) > 0.08
+
+
+def test_delayed_lift_confirmation_keeps_earlier_excursion():
+    samples = observations()
+    for index, sample in enumerate(samples):
+        sample["u"] = 0.6 - 0.3 * max(0, 1 - abs(index - 40) / 20)
+        sample["separation"] = 0.12 if 45 <= index <= 55 else 0
+    skill = extract_skill(samples, CALIBRATION, "delayed-lift.mp4", CONFIG)
+    assert max(point[1] for point in skill["transport"]) > 0.085
+    assert skill["events"][0]["time"] < 45 / 20

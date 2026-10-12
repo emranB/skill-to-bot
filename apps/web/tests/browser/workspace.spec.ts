@@ -31,8 +31,8 @@ test('runs the supplied demonstration and shows the measured robot result', asyn
   );
   test.setTimeout(420000);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Can pickup 1' })).toBeVisible();
-  await page.getByRole('button', { name: 'Can pickup 1' }).click();
+  await expect(page.getByRole('button', { name: 'Can pickup right to left 1' })).toBeVisible();
+  await page.getByRole('button', { name: 'Can pickup right to left 1' }).click();
   await page.getByRole('button', { name: 'Confirm Mapping' }).click();
   const start = page.getByRole('button', { name: 'Run Demo', exact: true });
   await expect(start).toBeEnabled();
@@ -52,6 +52,22 @@ test('runs the supplied demonstration and shows the measured robot result', asyn
   await page.getByRole('tab', { name: 'Observations', exact: true }).click();
   await expect(page.getByRole('tabpanel')).toContainText('329 tracked frames');
   await expect(page.locator('tbody tr')).toHaveCount(329);
+  await expect(page.getByRole('tabpanel')).toContainText('Acquisition: YOLO');
+  await expect(page.getByLabel('Tracked object', { exact: true })).toBeVisible();
+  const initialBounds = await page
+    .getByLabel('Tracked object', { exact: true })
+    .getAttribute('style');
+  await page.locator('.tracked-video video').evaluate((element) => {
+    (element as HTMLVideoElement).currentTime = 7;
+  });
+  await expect
+    .poll(() => page.getByLabel('Tracked object', { exact: true }).getAttribute('style'))
+    .not.toBe(initialBounds);
+  expect(
+    await page
+      .getByLabel('Tracked object', { exact: true })
+      .evaluate((element) => parseFloat((element as HTMLElement).style.left)),
+  ).toBeLessThan(10);
   const robot = page.locator('video').last();
   await expect
     .poll(() => robot.evaluate((element) => (element as HTMLVideoElement).readyState))
@@ -67,8 +83,8 @@ test('workspace renders media and controls without horizontal overflow', async (
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'skill-to-bot', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Can pickup 1' })).toBeVisible();
-  await page.getByRole('button', { name: 'Can pickup 1' }).click();
+  await expect(page.getByRole('button', { name: 'Can pickup right to left 1' })).toBeVisible();
+  await page.getByRole('button', { name: 'Can pickup right to left 1' }).click();
   await expect(page.getByText('Connected', { exact: true })).toBeVisible();
   const image = page.getByAltText('Selected demonstration first frame with object selection');
   await expect(image).toBeVisible();

@@ -75,8 +75,11 @@ def demo_path(video: str) -> Path:
 def validate_calibration(calibration: dict):
     roi = calibration.get("roi")
     span = calibration.get("workspace_span")
-    if calibration.get("method") != "operator_planar" or calibration.get("plane") != "front":
-        raise HTTPException(422, "Explicit front-plane calibration is required.")
+    if calibration.get("method") != "operator_planar" or calibration.get("plane") not in (
+        "front",
+        "table",
+    ):
+        raise HTTPException(422, "Explicit front or projected-table calibration is required.")
     if not isinstance(span, (int, float)) or not math.isfinite(span) or not 0.05 <= span <= 0.5:
         raise HTTPException(422, "Workspace span must be 0.05 to 0.5 meters.")
     if (

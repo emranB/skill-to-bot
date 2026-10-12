@@ -12,7 +12,7 @@ Architecture 01 is implemented and locally verified for the supplied controlled 
 - [Final system roadmap](docs/architecture/architecture-final.md)
 - [Development rules](docs/architecture/development-rules.md)
 - [Build 01 checklist](dev_plans/build-01.md)
-- [Build 02 checklist](dev_plans/build-02.md) - Tier 1 selection, support-surface reasoning, and viewpoint checks.
+- [Build 02 checklist](dev_plans/build-02.md) - Tier 1 selection, support reasoning, ordered transport and cumulative verification.
 
 ## Current build target
 
@@ -39,6 +39,8 @@ The web application is at [localhost:5173](http://localhost:5173). `bash run.sh`
 
 The controlled MVP uses a stationary-camera video, a rough object hint, and a workspace span. Draw a box or click the object, click the yellow **Confirm Mapping** action, then **Run Demo**. Editing the mapping or choosing another video clears confirmation. Run status shows the current robot phase and inline Logs, Skill, and Observations tabs. The hint is snapped to the object. Lift means separation from the support surface. Grasp and release events are motion estimates; camera depth is not recovered. The simulation verifies physical lift, placement, and release independently.
 
+Build 02 closure adds focused-crop segmentation retries, visible YOLO/GrabCut provenance, refreshed object bounds during source playback, and ordered transport waypoints. Front-plane mapping remains sideways-only. Projected-table mapping is an explicit two-axis image-to-table approximation, not recovered physical depth or perspective-correct motion. The robot checks actual object convergence at each transport waypoint. Physical recording failures and remaining acceptance gates are recorded cumulatively in Build 02; Tier 1 is not frozen.
+
 ## Live Camera
 
 For camera capture, select **Live Camera**, allow camera permission, hint the object and set the workspace span, then **Confirm Mapping**. **Start Recording** and **Stop Recording** control capture in the human demonstration view. Stopping opens a Yes/No prompt: **No** discards the unsaved clip and returns to the live feed; **Yes** saves it first, then starts the full pipeline automatically. A saved clip remains available if processing or execution fails.
@@ -51,6 +53,8 @@ Camera browser tests inject a synthetic stream and use the real MediaRecorder, s
 
 ```bash
 python -m pip install -r requirements-dev.txt
+python -m ruff check services tests
+python -m ruff format --check services tests
 RUN_INTEGRATION=1 python -m pytest tests -q
 cd apps/web
 npm ci

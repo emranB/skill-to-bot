@@ -15,6 +15,7 @@ def execute(environment, skill: dict, video_path, config: dict, progress) -> dic
     lifted = False
     grasped = False
     steps = 0
+    transport = []
     deadline = time.monotonic() + config["execution_timeout"]
     robot = env.robots[0]
     reference_orientation = env.sim.data.site_xmat[robot.eef_site_id].reshape(3, 3).copy()
@@ -53,6 +54,15 @@ def execute(environment, skill: dict, video_path, config: dict, progress) -> dic
                 )
             if phase["phase"] == "lift" and not lifted:
                 raise ValueError("The robot did not lift the object under physics.")
+            if phase["phase"] == "transport":
+                actual = environment.object_position().copy()
+                expected = phase["target"] - [0, 0, config["grasp_z_offset"] + 0.003]
+                path_error = float(np.linalg.norm(actual - expected))
+                transport.append(
+                    {"target": expected.tolist(), "actual": actual.tolist(), "error_m": path_error}
+                )
+                if path_error > config["placement_tolerance"]:
+                    raise ValueError("The grasped object did not follow a transport waypoint.")
         final = environment.object_position().copy()
         position_error = float(np.linalg.norm(final - goal))
         gripper_contact = bool(
@@ -79,6 +89,7 @@ def execute(environment, skill: dict, video_path, config: dict, progress) -> dic
             "goal": goal.tolist(),
             "final": final.tolist(),
             "steps": steps,
+            "transport": transport,
             "video": "simulation.mp4",
         }
     finally:

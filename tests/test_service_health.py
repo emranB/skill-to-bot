@@ -17,8 +17,8 @@ pytestmark = [
 
 @pytest.mark.parametrize("service,unaffected_port", [("perception", 8002), ("simulation", 8001)])
 def test_dependency_failure_isolation(service, unaffected_port):
-    subprocess.run(["docker", "compose", "stop", service], check=True, timeout=40)
     try:
+        subprocess.run(["docker", "compose", "stop", service], check=True, timeout=120)
         with httpx.Client(timeout=5) as client:
             assert client.get("http://localhost:8000/health").status_code == 200
             assert client.get("http://localhost:5173").status_code == 200
@@ -27,7 +27,7 @@ def test_dependency_failure_isolation(service, unaffected_port):
             status = client.get("http://localhost:8000/services").json()
             assert status[service]["status"] == "unavailable"
     finally:
-        subprocess.run(["docker", "compose", "start", service], check=True, timeout=40)
+        subprocess.run(["docker", "compose", "start", service], check=True, timeout=120)
         deadline = time.monotonic() + 180
         with httpx.Client(timeout=5) as client:
             while time.monotonic() < deadline:

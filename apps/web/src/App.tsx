@@ -13,7 +13,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import config from '../config.json';
-import RunStatus, { type Run } from './RunStatus';
+import RunStatus, { type Run, type Observation } from './RunStatus';
 import LiveCamera, { clickHint, type Roi } from './LiveCamera';
 
 type Demo = { name: string; bytes: number; url: string };
@@ -23,7 +23,10 @@ function displayName(name: string) {
   const live = name.match(/^live_demo_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
   if (live) return `Live demo ${live[1]}-${live[2]}-${live[3]} ${live[4]}:${live[5]} UTC`;
   if (/^[a-f0-9]{32}\.mp4$/.test(name)) return `Uploaded video ${name.slice(0, 6)}`;
-  return name.replace(/^pop-can-pick-up-(\d+)\.mp4$/, 'Can pickup $1');
+  return name
+    .replace(/(?:\.mp4)+$/i, '')
+    .replace(/^pop-can-pick-up-/, 'Can pickup ')
+    .replaceAll('-', ' ');
 }
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -42,6 +45,9 @@ export default function App() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [roi, setRoi] = useState<Roi>([0.67, 0.23, 0.17, 0.5]);
   const [span, setSpan] = useState(config.defaultWorkspaceSpanMeters);
+  const [plane, setPlane] = useState<'front' | 'table'>('front');
+  const [observations, setObservations] = useState<Observation[]>([]);
+  const [sourceTime, setSourceTime] = useState(0);
   const [confirmed, setConfirmed] = useState(false);
   const [mode, setMode] = useState<'object' | 'video'>('object');
   const [frameRatio, setFrameRatio] = useState(16 / 9);
@@ -67,6 +73,10 @@ export default function App() {
     Math.min(roi[2], roi[3]) >= 0.01 &&
     roi[0] + roi[2] <= 1 &&
     roi[1] + roi[3] <= 1;
+  const tracked = observations.reduce<Observation | undefined>(
+    (latest, sample) => (sample.time <= sourceTime ? sample : latest),
+    undefined,
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -160,7 +170,7 @@ export default function App() {
         body: JSON.stringify({
           video,
           request_id: crypto.randomUUID(),
-          calibration: { method: 'operator_planar', plane: 'front', workspace_span: span, roi },
+          calibration: { method: 'operator_planar', plane, workspace_span: span, roi },
         }),
       });
       setRunId(value.run_id);
@@ -408,6 +418,19 @@ export default function App() {
                 {!demos.length && <p className="muted">No demonstrations available.</p>}
                 <div className="calibration">
                   <h3>Workspace mapping</h3>
+                  <label htmlFor="plane">Transport plane</label>
+                  <select
+                    id="plane"
+                    value={plane}
+                    disabled={locked}
+                    onChange={(event) => {
+                      setPlane(event.target.value as 'front' | 'table');
+                      setConfirmed(false);
+                    }}
+                  >
+                    <option value="front">Front plane (sideways)</option>
+                    <option value="table">Projected table (two axes)</option>
+                  </select>
                   <label htmlFor="span">
                     Horizontal span <span>{span.toFixed(2)} m</span>
                   </label>
@@ -450,8 +473,8 @@ export default function App() {
                   </fieldset>
                   <p className={`mapping-state ${confirmed ? 'ready' : ''}`}>
                     {confirmed
-                      ? 'Front-plane mapping confirmed'
-                      : 'Front-plane mapping unconfirmed'}
+                      ? `${plane === 'front' ? 'Front-plane' : 'Projected-table'} mapping confirmed`
+                      : `${plane === 'front' ? 'Front-plane' : 'Projected-table'} mapping unconfirmed`}
                   </p>
                 </div>
               </aside>
@@ -491,12 +514,33 @@ export default function App() {
                       />
                     ) : selected ? (
                       mode === 'video' ? (
-                        <video
-                          key={selected}
-                          controls
-                          preload="metadata"
-                          src={`/api/demonstrations/${encodeURIComponent(selected)}`}
-                        />
+                        <div className="tracked-video">
+                          <video
+                            key={selected}
+                            controls
+                            preload="metadata"
+                            src={`/api/demonstrations/${encodeURIComponent(selected)}`}
+                            onLoadedMetadata={(event) =>
+                              setSourceTime(event.currentTarget.currentTime)
+                            }
+                            onTimeUpdate={(event) => setSourceTime(event.currentTarget.currentTime)}
+                            onSeeked={(event) => setSourceTime(event.currentTarget.currentTime)}
+                          />
+                          {tracked && (
+                            <div
+                              className="roi acquired"
+                              aria-label="Tracked object"
+                              style={{
+                                left: `${tracked.box[0] * 100}%`,
+                                top: `${tracked.box[1] * 100}%`,
+                                width: `${tracked.box[2] * 100}%`,
+                                height: `${tracked.box[3] * 100}%`,
+                              }}
+                            >
+                              <span>Object</span>
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <div
                           className="object-frame"
@@ -547,7 +591,7 @@ export default function App() {
                               height: `${roi[3] * 100}%`,
                             }}
                           >
-                            <span>Object</span>
+                            <span>Hint</span>
                           </div>
                         </div>
                       )
@@ -608,7 +652,7 @@ export default function App() {
                     </div>
                   </section>
                 </div>
-                <RunStatus key={run?.run_id} run={run} />
+                <RunStatus key={run?.run_id} run={run} onObservations={setObservations} />
               </div>
             </section>
           </>

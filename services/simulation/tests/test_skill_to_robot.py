@@ -1,6 +1,7 @@
 # Purpose: Verify skill boundaries and target generation without executing physics.
 import copy
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -9,11 +10,7 @@ from jsonschema import ValidationError
 from src.skill_to_robot.skill_to_robot import robot_targets, validate_skill
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
-SCHEMA = (
-    Path("/contracts/skill.schema.json")
-    if Path("/contracts").exists()
-    else ROOT / "contracts/skill.schema.json"
-)
+SCHEMA = Path(os.environ.get("CONTRACTS_DIR", str(ROOT / "contracts"))) / "skill.schema.json"
 CONFIG = json.loads((Path(__file__).resolve().parents[1] / "config.json").read_text())
 
 
@@ -60,3 +57,20 @@ def test_unsupported_object_and_depth(skill):
     skill["goal"][0] = 0.05
     with pytest.raises(ValueError, match="world X"):
         validate_skill(skill, SCHEMA, CONFIG)
+
+
+def test_waypoints_are_bounded_ordered_and_backward_compatible(skill):
+    skill["calibration"]["plane"] = "table"
+    skill["transport"] = [skill["start"], [0.05, 0.08, 0.95], [-0.04, 0.12, 0.95], skill["goal"]]
+    validate_skill(skill, SCHEMA, CONFIG)
+    initial = np.array([0, 0, 0.95])
+    targets = [
+        target for target in robot_targets(skill, initial, CONFIG) if target["phase"] == "transport"
+    ]
+    assert len(targets) == 3
+    assert all(target["gripper"] == 1 for target in targets)
+    assert np.allclose(targets[0]["target"][:2], [0.05, 0.08])
+    for point in ([0.3, 0, 0.95], [0, 0.1, float("nan")], [0, 0.1, 1.0]):
+        skill["transport"][1] = point
+        with pytest.raises((ValueError, ValidationError)):
+            validate_skill(skill, SCHEMA, CONFIG)
