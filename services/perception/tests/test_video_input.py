@@ -24,5 +24,8 @@ def test_real_decoding_and_duration_limit(tmp_path):
     frames = list(read_video(path, CONFIG))
     assert len(frames) == 20
     assert frames[-1][0] == pytest.approx(0.95)
+    sampled = list(read_video(path, {**CONFIG, "frame_stride": 2}))
+    assert len(sampled) == 10
+    assert sampled[1][0] == pytest.approx(0.1)
     with pytest.raises(ValueError, match="duration"):
         list(read_video(path, {**CONFIG, "max_seconds": 0.5}))

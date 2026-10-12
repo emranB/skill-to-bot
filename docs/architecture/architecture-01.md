@@ -2,11 +2,11 @@
 
 ## 1. Purpose
 
-This is the active architecture for the internship challenge MVP. It deliberately implements only the shortest complete path from a human demonstration video to a simulated robot manipulation result.
+This is the active architecture for the internship challenge MVP and the Tier 1 perception extension. It deliberately implements only the shortest complete path from a human demonstration video to a simulated robot manipulation result.
 
 The project is designed for expansion without implementing future features prematurely.
 
-The canonical project name is `skill-to-bot`. This document defines the active scope; `development-rules.md` defines mandatory implementation practice. Implementation and evidence are tracked in `dev_plans/build-01.md`.
+The canonical project name is `skill-to-bot`. This document defines the active scope; `development-rules.md` defines mandatory implementation practice. Implementation and evidence are tracked in `dev_plans/build-01.md` and `dev_plans/build-02.md`.
 
 ## 2. Architecture rules
 
@@ -29,7 +29,9 @@ Responsibility: convert a human demonstration video into a compact skill represe
 Owned DFD processes:
 
 - `Video Input`
+- `Object Segmentation`
 - `Object Tracking`
+- `Support Surface`
 - `Skill Extraction`
 
 Directory mapping:
@@ -49,14 +51,20 @@ services/perception/
 ├── src/
 │   ├── video_input/
 │   │   └── video_input.py
+│   ├── object_segmentation/
+│   │   └── object_segmentation.py
 │   ├── object_tracking/
 │   │   └── object_tracking.py
+│   ├── support_surface/
+│   │   └── support_surface.py
 │   └── skill_extraction/
 │       └── skill_extraction.py
 └── tests/
     ├── conftest.py
     ├── test_video_input.py
+    ├── test_object_segmentation.py
     ├── test_object_tracking.py
+    ├── test_support_surface.py
     └── test_skill_extraction.py
 ```
 
@@ -238,8 +246,10 @@ flowchart LR
     WEB[Web] <--> API[API]
     API <--> WF[Workflow]
 
-    VI[Video Input] --> OT[Object Tracking]
-    OT --> SE[Skill Extraction]
+    VI[Video Input] --> OSG[Object Segmentation]
+    OSG --> OT[Object Tracking]
+    OT --> SS[Support Surface]
+    SS --> SE[Skill Extraction]
     SE --> STR[Skill To Robot]
     STR --> RC[Robot Control]
     RC <--> ENV[Simulation Environment]
@@ -252,7 +262,7 @@ flowchart LR
 
 Ownership:
 
-- `Video Input`, `Object Tracking`, `Skill Extraction` -> `perception`
+- `Video Input`, `Object Segmentation`, `Object Tracking`, `Support Surface`, `Skill Extraction` -> `perception`
 - `Simulation Environment`, `Skill To Robot`, `Robot Control` -> `simulation`
 - `API`, `Workflow` -> `orchestrator`
 - `Web` -> `web`
@@ -278,7 +288,8 @@ skill-to-bot/
 ├── scripts/
 │   └── lifecycle.sh
 ├── dev_plans/
-│   └── build-01.md
+│   ├── build-01.md
+│   └── build-02.md
 ├── docs/
 │   ├── README.md
 │   └── architecture/
@@ -382,7 +393,7 @@ After Stop, Yes saves first and then submits the existing `/runs` request with t
 
 Workflow records concise timestamped run logs in `run.json` and streams them with status snapshots. Logs describe processing, observed simulation phase changes, and completion or failure; they are not frame-level traces. The browser reads the skill from run state and observations through the existing artifact endpoint. All tracked frames are visible in a scrollable table; nothing requires a download. Older runs without recorded logs are labelled honestly. Uploaded UUID-named videos remain local and ignored by Git; supplied named demonstrations and the compact deterministic fixture remain repository inputs.
 
-Verified build stack: Python 3.11, LIBERO source revision `8f1084e3132a39270c3a13ebe37270a43ece2a01`, robosuite 1.4.1, MuJoCo 2.3.7, NumPy 1.26.4, and CPU OSMesa rendering on Linux. FastAPI 0.115.12, HTTPX 0.28.1, and OpenCV contrib 4.10.0 provide service interfaces and CSRT tracking. The web build uses Node 22, React 19.1, TypeScript 5.8.3, and Vite 8.3.4. Exact direct and transitive Python versions are recorded in each service's `requirements.txt` and `requirements.lock`; web resolution is in `package-lock.json`. Training datasets, pretrained tracking models, and a GPU are not required.
+Verified build stack: Python 3.11, LIBERO source revision `8f1084e3132a39270c3a13ebe37270a43ece2a01`, robosuite 1.4.1, MuJoCo 2.3.7, NumPy 1.26.4, and CPU OSMesa rendering on Linux. FastAPI 0.115.12, HTTPX 0.28.1, OpenCV contrib 4.10.0, and onnxruntime 1.20.1 provide service interfaces, CSRT tracking, and CPU segmentation. The YOLOv8n-seg ONNX weights are fetched during the perception image build from the published Hugging Face file and checked with SHA-256 `cb1e689c548b3fa019691c9c1762f38a76276981ce75d31f6c5aae396dbff78b`. The web build uses Node 22, React 19.1, TypeScript 5.8.3, and Vite 8.3.4. Exact direct and transitive Python versions are recorded in each service's `requirements.txt` and `requirements.lock`; web resolution is in `package-lock.json`. Training datasets are not required. A GPU is optional.
 
 LIBERO source and model assets are acquired at the pinned commit during the simulation image build, with LIBERO's MIT license retained in the image. robosuite and MuJoCo distribution licenses remain with installed packages. No copied third-party source or downloaded model cache is stored in this repository. `tests/fixtures/generate_video.py` regenerates the small can video fixture from the supplied source without modifying the original.
 
@@ -392,8 +403,16 @@ Perception accepts `POST /process` with a stored video name and operator calibra
 
 Run states are `running`, `completed`, and `failed`, with a separate processing/control phase and error context. Only one run executes at a time. Duplicate request IDs return the original run only if inputs match. Orchestrator persists run state and marks interrupted runs failed on restart; simulation job state is process-local. Restart and communication failure may leave physical execution outcome unknown, which must be reported honestly. No automatic retry of processing/execution commands is permitted; idempotent health reads are polled with bounded request deadlines.
 
-The controlled-scene tracker is OpenCV CSRT initialized from an operator-selected normalized rectangle `[x, y, width, height]` in the first frame. A fixed front camera and visible, textured can are required. `operator_planar` calibration maps normalized horizontal displacement to robot world Y using an explicitly selected workspace span in meters. World X is held fixed; the simulated can starts on the configured table. Source lift evidence establishes manipulation intent and safe robot approach clearance. Neither physical camera depth nor a full metric 3D human trajectory is inferred.
+Uploaded video and saved live-camera clips both enter through `Video Input`. There is one downstream path. `frame_stride` can drop frames when full camera rate is unnecessary; the default keeps every frame.
 
-Grasp/release times are motion-derived estimates: sustained departure from the initial pose, visible lift/transport, then stable placement. They do not prove human finger contact. Report this limitation with each skill and use a heuristic confidence score, not a claimed calibrated probability. Reject missing calibration, lost tracking, absent lift, insufficient transport, unstable placement, or unsupported depth/rotation assumptions.
+The operator rectangle or click is a selection hint, not the object geometry. `Object Segmentation` snaps that hint to a mask. The pretrained implementation is Ultralytics YOLOv8n-seg, exported to ONNX and run with onnxruntime. CUDA is used when that provider is installed; CPU is the default and a GPU is not required. The weights are AGPL-3.0, downloaded into the perception image, and are not stored in this repository. Downstream code sees a mask, not YOLO structures. If no detected instance agrees with the hint, GrabCut segments the hinted region so an object outside the detector vocabulary can still be selected. The demonstrated object is generic. The skill field `object` remains `can` because the existing contract names the simulated LIBERO target.
+
+`Object Tracking` is OpenCV CSRT initialized from the snapped mask. It keeps one object identity for the clip. A stationary camera is assumed for each demonstration. `Support Surface` learns the contact color under the resting object. Lift is separation from that support: the object rises above both resting poses, grows beyond the on-plane size, or loses contact for several frames. Sliding between resting poses is not a lift. Image-up motion alone is not a lift. Weak or conflicting evidence is rejected instead of claimed as physical separation. The practical Tier 1 envelope is about plus or minus 60 degrees of horizontal viewpoint and about 0 to 60 degrees of downward elevation, for a stationary camera. Extreme occlusion, underneath-table views, and hidden objects are outside Tier 1. This envelope is about the separation decision. It does not recover metric depth.
+
+`operator_planar` calibration still maps normalized horizontal displacement to robot world Y using the selected workspace span in meters. World X is held fixed. The simulated can starts on the configured table. Approach clearance is the configured safe height, because monocular separation is not a measured lift distance. Neither physical camera depth nor a full metric 3D human trajectory is inferred.
+
+Grasp, transport, place, and release stay the existing ordered events. Grasp and release are inferred from object motion: sustained separation from the support, then a return that stays settled. They do not prove human finger contact. Hand, finger, and pose tracking are not part of Tier 1. Report the limitation with each skill and use a heuristic confidence score, not a claimed calibrated probability. Reject missing calibration, lost tracking, absent separation, ambiguous separation, insufficient transport, unstable placement, or unsupported rotation assumptions.
+
+Simulation still receives only the versioned skill. It does not learn which segmenter, camera, or support estimate produced it.
 
 Simulation uses the pinned LIBERO can asset and a minimal tabletop BDDL task. Skill poses describe the nominal world-frame intent anchor; the execution targets preserve the goal-minus-start displacement relative to the actual reset object pose. The Panda follows local OSC_POSE targets, preserving its initial downward gripper orientation, through physics with no object teleporting during execution. Success requires demonstrated gripper contact, at least 4 cm of physical lift, final position error no greater than 35 mm, no remaining gripper contact, and object speed no greater than 0.05 m/s after placement. Controller targets must converge within 8 mm, with bounded phase steps and a 240-second wall-clock deadline. Configuration files own these tolerances.

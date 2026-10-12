@@ -3,6 +3,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, Circle, LoaderCircle, Square } from 'lucide-react';
 
 export type Roi = [number, number, number, number];
+
+export function clickHint(point: [number, number]): Roi {
+  const width = 0.18;
+  const height = 0.28;
+  return [
+    Math.min(1 - width, Math.max(0, point[0] - width / 2)),
+    Math.min(1 - height, Math.max(0, point[1] - height / 2)),
+    width,
+    height,
+  ];
+}
 type Props = {
   roi: Roi;
   confirmed: boolean;
@@ -201,8 +212,18 @@ export default function LiveCamera({ roi, confirmed, disabled, onMapping, onLock
             Math.abs(y - drag.current[1]),
           ]);
         }}
-        onPointerUp={() => {
+        onPointerUp={(event) => {
+          if (!drag.current) return;
+          const origin = drag.current;
+          const [x, y] = point(event);
           drag.current = null;
+          const width = Math.abs(x - origin[0]);
+          const height = Math.abs(y - origin[1]);
+          onMapping(
+            width < 0.03 && height < 0.03
+              ? clickHint(origin)
+              : [Math.min(x, origin[0]), Math.min(y, origin[1]), width, height],
+          );
         }}
       >
         <video
@@ -229,7 +250,7 @@ export default function LiveCamera({ roi, confirmed, disabled, onMapping, onLock
               height: `${roi[3] * 100}%`,
             }}
           >
-            <span>Can</span>
+            <span>Object</span>
           </div>
         )}
         {!ready && !error && (

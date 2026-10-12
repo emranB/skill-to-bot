@@ -27,9 +27,13 @@ def read_video(path: Path, config: dict):
             if width > config["tracking_width"]:
                 frame = cv2.resize(
                     frame,
-                    (config["tracking_width"], round(height * config["tracking_width"] / width)),
+                    (
+                        config["tracking_width"],
+                        round(height * config["tracking_width"] / width),
+                    ),
                 )
-            yield index / fps, frame
+            if index % int(config.get("frame_stride", 1)) == 0:
+                yield index / fps, frame
             index += 1
         if index < 4 or index < count * 0.95:
             raise ValueError("Video ended before all expected frames could be decoded.")

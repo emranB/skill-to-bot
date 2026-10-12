@@ -12,6 +12,7 @@ Architecture 01 is implemented and locally verified for the supplied controlled 
 - [Final system roadmap](docs/architecture/architecture-final.md)
 - [Development rules](docs/architecture/development-rules.md)
 - [Build 01 checklist](dev_plans/build-01.md)
+- [Build 02 checklist](dev_plans/build-02.md) - Tier 1 selection, support-surface reasoning, and viewpoint checks.
 
 ## Current build target
 
@@ -36,13 +37,13 @@ bash build-and-run.sh
 
 The web application is at [localhost:5173](http://localhost:5173). `bash run.sh`, `bash stop.sh`, and `bash clean.sh` manage this Compose project. Cleanup removes runtime containers and networking, preserving demonstrations and recorded run artifacts. Service directories expose the same four commands for their own container.
 
-The controlled MVP uses a fixed front-camera video and an operator-selected object rectangle plus workspace span. Check these inputs, click the yellow **Confirm Mapping** action, then **Run Demo**. Editing the mapping or choosing another video clears confirmation. Run status shows the current robot phase and inline Logs, Skill, and Observations tabs. Grasp and release events are motion estimates; camera depth is not recovered. The simulation verifies physical lift, placement, and release independently.
+The controlled MVP uses a stationary-camera video, a rough object hint, and a workspace span. Draw a box or click the object, click the yellow **Confirm Mapping** action, then **Run Demo**. Editing the mapping or choosing another video clears confirmation. Run status shows the current robot phase and inline Logs, Skill, and Observations tabs. The hint is snapped to the object. Lift means separation from the support surface. Grasp and release events are motion estimates; camera depth is not recovered. The simulation verifies physical lift, placement, and release independently.
 
 ## Live Camera
 
-For camera capture, select **Live Camera**, allow camera permission, select the can rectangle and workspace span, then **Confirm Mapping**. **Start Recording** and **Stop Recording** control capture in the human demonstration view. Stopping opens a Yes/No prompt: **No** discards the unsaved clip and returns to the live feed; **Yes** saves it first, then starts the full pipeline automatically. A saved clip remains available if processing or execution fails.
+For camera capture, select **Live Camera**, allow camera permission, hint the object and set the workspace span, then **Confirm Mapping**. **Start Recording** and **Stop Recording** control capture in the human demonstration view. Stopping opens a Yes/No prompt: **No** discards the unsaved clip and returns to the live feed; **Yes** saves it first, then starts the full pipeline automatically. A saved clip remains available if processing or execution fails.
 
-Camera capture is video-only and needs localhost or HTTPS plus browser camera/MediaRecorder support. Recordings stop automatically at 59 seconds to stay within the 60-second processing limit. Nothing is uploaded before Yes. The orchestrator normalizes WebM/MP4 capture to H.264 MP4, capped at 100 MB, and stores `data/live_demos/live_demo_<UTC timestamp>_<unique suffix>.mp4`. Live demos are local, ignored by Git, and preserved by cleanup. The same fixed-camera, front-plane, textured-can assumptions still apply; live capture does not add depth estimation or object recognition.
+Camera capture is video-only and needs localhost or HTTPS plus browser camera/MediaRecorder support. Recordings stop automatically at 59 seconds to stay within the 60-second processing limit. Nothing is uploaded before Yes. The orchestrator normalizes WebM/MP4 capture to H.264 MP4, capped at 100 MB, and stores `data/live_demos/live_demo_<UTC timestamp>_<unique suffix>.mp4`. Live demos are local, ignored by Git, and preserved by cleanup. Live capture uses the same perception path as an uploaded video. The camera should stay still. Depth is not reconstructed, and separation is rejected when the view does not provide enough evidence.
 
 ## Validation
 
@@ -62,4 +63,4 @@ Primary verification uses the real running stack. `npm test` covers real desktop
 
 The [GitHub workflow](.github/workflows/build.yml) builds all four images and runs these end-to-end checks on pushes and pull requests. It uses pinned actions, read-only repository permissions, bounded execution, and failure diagnostics. Equivalent checks run locally; hosted verification of uncommitted changes requires an explicit commit and push. Nothing is published or deployed by CI.
 
-The existing architecture and development documents define the authoritative requirements. The explicitly requested `dev_plans/build-01.md` tracks execution and verification without overriding those requirements. Maintain these documents in place; add further documents only when explicitly requested.
+The existing architecture and development documents define the authoritative requirements. The explicitly requested build checklists track execution and verification without overriding those requirements. Build 01 records the verified baseline. Build 02 records the Tier 1 perception extension. Maintain these documents in place; add further documents only when explicitly requested.

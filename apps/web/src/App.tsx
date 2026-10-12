@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import config from '../config.json';
 import RunStatus, { type Run } from './RunStatus';
-import LiveCamera, { type Roi } from './LiveCamera';
+import LiveCamera, { clickHint, type Roi } from './LiveCamera';
 
 type Demo = { name: string; bytes: number; url: string };
 type Services = Record<string, { status: string; detail?: string }>;
@@ -226,7 +226,7 @@ export default function App() {
         <div className="brand">
           <Activity size={26} />
           <h1>skill-to-bot</h1>
-          <span className="version">Build 01</span>
+          <span className="version">Build 02</span>
         </div>
         <span className={`connection ${connected ? 'online' : ''}`}>
           <i />
@@ -425,7 +425,7 @@ export default function App() {
                     }}
                   />
                   <fieldset>
-                    <legend>Object rectangle (%)</legend>
+                    <legend>Object hint (%)</legend>
                     <div className="roi-inputs">
                       {['X', 'Y', 'Width', 'Height'].map((name, index) => (
                         <label key={name}>
@@ -507,8 +507,24 @@ export default function App() {
                             event.currentTarget.setPointerCapture(event.pointerId);
                           }}
                           onPointerMove={draw}
-                          onPointerUp={() => {
+                          onPointerUp={(event) => {
+                            if (!drag.current) return;
+                            const origin = drag.current;
+                            const point = coordinates(event);
                             drag.current = null;
+                            const width = Math.abs(point[0] - origin[0]);
+                            const height = Math.abs(point[1] - origin[1]);
+                            setRoi(
+                              width < 0.03 && height < 0.03
+                                ? clickHint(origin)
+                                : [
+                                    Math.min(point[0], origin[0]),
+                                    Math.min(point[1], origin[1]),
+                                    width,
+                                    height,
+                                  ],
+                            );
+                            setConfirmed(false);
                           }}
                         >
                           <img
@@ -531,7 +547,7 @@ export default function App() {
                               height: `${roi[3] * 100}%`,
                             }}
                           >
-                            <span>Can</span>
+                            <span>Object</span>
                           </div>
                         </div>
                       )

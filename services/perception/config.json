@@ -6,10 +6,16 @@
   "max_lost_frames": 5,
   "min_samples": 20,
   "motion_threshold": 0.025,
-  "lift_threshold": 0.035,
+  "frame_stride": 1,
+  "segment_iterations": 3,
+  "separation_threshold": 0.06,
+  "separation_ambiguous": 0.035,
+  "separation_frames": 5,
+  "planar_coupling": 1.35,
+  "support_color_distance": 36,
   "settle_threshold": 0.025,
   "settle_frames": 8,
-  "placement_vertical_tolerance": 0.12,
   "min_transfer_distance": 0.025,
+  "approach_clearance": 0.08,
   "object_center_height": 0.95
 }

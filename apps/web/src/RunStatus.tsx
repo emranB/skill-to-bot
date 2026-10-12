@@ -15,7 +15,14 @@ export type Run = {
   logs?: { time: number; message: string }[];
   video_available?: boolean;
 };
-type Observation = { time: number; u: number; v: number; confidence: number; box: number[] };
+type Observation = {
+  time: number;
+  u: number;
+  v: number;
+  confidence: number;
+  box: number[];
+  on_surface?: boolean;
+};
 
 const phases = [
   ['processing', 'Extract skill'],
@@ -108,6 +115,7 @@ export default function RunStatus({ run }: { run?: Run }) {
               <th>X</th>
               <th>Y</th>
               <th>Confidence</th>
+              <th>Surface</th>
               <th>Rectangle (x, y, w, h)</th>
             </tr>
           </thead>
@@ -118,6 +126,13 @@ export default function RunStatus({ run }: { run?: Run }) {
                 <td>{sample.u.toFixed(3)}</td>
                 <td>{sample.v.toFixed(3)}</td>
                 <td>{sample.confidence.toFixed(2)}</td>
+                <td>
+                  {sample.on_surface === undefined
+                    ? 'Unknown'
+                    : sample.on_surface
+                      ? 'On surface'
+                      : 'Lifted'}
+                </td>
                 <td>{sample.box.map((value) => value.toFixed(3)).join(', ')}</td>
               </tr>
             ))}

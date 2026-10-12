@@ -26,6 +26,8 @@ If an implementation choice is unclear, follow this order:
 
 ## Promotion rule
 
+The requested [Build 02 checklist](../../dev_plans/build-02.md) extends the verified [Build 01 baseline](../../dev_plans/build-01.md). Tier 1 selection, support-surface reasoning, and viewpoint checks are promoted in Architecture 01. Preserve the existing four-service boundaries and contracts wherever possible.
+
 A final-architecture feature becomes implementable only when the existing `architecture-01.md` promotes it and defines:
 
 - the requirement it satisfies

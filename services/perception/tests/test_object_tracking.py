@@ -5,7 +5,9 @@ from src.object_tracking.object_tracking import track_object
 from src.skill_extraction.skill_extraction import CONFIG
 
 
-@pytest.mark.parametrize("roi", [[0, 0, 0, 0], [0.9, 0.9, 0.2, 0.2], [float("nan"), 0, 0.2, 0.2]])
+@pytest.mark.parametrize(
+    "roi", [[0, 0, 0, 0], [0.9, 0.9, 0.2, 0.2], [float("nan"), 0, 0.2, 0.2]]
+)
 def test_invalid_rectangle(roi):
     with pytest.raises(ValueError):
         track_object([], roi, CONFIG)
@@ -13,7 +15,9 @@ def test_invalid_rectangle(roi):
 
 def test_textureless_selection():
     with pytest.raises(ValueError, match="texture"):
-        track_object([(0, np.zeros((100, 100, 3), dtype=np.uint8))], [0.1, 0.1, 0.4, 0.4], CONFIG)
+        track_object(
+            [(0, np.zeros((100, 100, 3), dtype=np.uint8))], [0.1, 0.1, 0.4, 0.4], CONFIG
+        )
 
 
 def test_lost_track(monkeypatch):

@@ -42,7 +42,8 @@ skill-to-bot/
 ├── scripts/
 │   └── lifecycle.sh
 ├── dev_plans/
-│   └── build-01.md
+│   ├── build-01.md
+│   └── build-02.md
 ├── docs/
 │   ├── README.md
 │   └── architecture/
@@ -69,8 +70,10 @@ skill-to-bot/
 │   │   ├── clean.sh
 │   │   ├── src/
 │   │   │   ├── video_input/
-│   │   │   ├── hand_tracking/
+│   │   │   ├── object_segmentation/
 │   │   │   ├── object_tracking/
+│   │   │   ├── support_surface/
+│   │   │   ├── hand_tracking/
 │   │   │   ├── spatial_calibration/
 │   │   │   ├── event_detection/
 │   │   │   ├── skill_extraction/
