@@ -1,6 +1,7 @@
 # Purpose: Verify drawing and unchanged-skill retargeting through real Panda physics.
 import json
 import os
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -76,26 +77,34 @@ def verify(client, run):
     )
     video = client.get(prefix + "simulation.mp4")
     assert video.status_code == 200 and len(video.content) > 10000
-    directory = ROOT / "data/runs" / run["run_id"]
-    reader = imageio.get_reader(
-        str(directory / "simulation.mp4"),
-        input_params=["-threads", "1"],
-        output_params=["-threads", "1"],
-    )
-    try:
-        count = reader.count_frames()
-        assert count > 10
-        first, final = reader.get_data(0), reader.get_data(count - 1)
-        assert count == len(frames)
-        assert first.std() > 10 and final.std() > 10
-        assert abs(first.astype(float) - final).mean() > 0.5
-        # The decoded MP4 final frame matches the independently saved simulator render.
-        rendered = imageio.imread(directory / "simulator-final.png")
-        assert np.abs(final.astype(float) - rendered).mean() < 5
-        imageio.imwrite(directory / "first-frame.png", first)
-        imageio.imwrite(directory / "final-frame.png", final)
-    finally:
-        reader.close()
+    preview = client.get(prefix + "simulator-final.png")
+    assert preview.status_code == 200 and len(preview.content) > 1000
+    # Decode on a host-writable temp path. Docker-owned data/runs is often root-owned in CI.
+    with tempfile.TemporaryDirectory(prefix="skill-to-bot-frames-") as temporary:
+        directory = Path(temporary)
+        movie = directory / "simulation.mp4"
+        movie.write_bytes(video.content)
+        rendered_path = directory / "simulator-final.png"
+        rendered_path.write_bytes(preview.content)
+        reader = imageio.get_reader(
+            str(movie),
+            input_params=["-threads", "1"],
+            output_params=["-threads", "1"],
+        )
+        try:
+            count = reader.count_frames()
+            assert count > 10
+            first, final = reader.get_data(0), reader.get_data(count - 1)
+            assert count == len(frames)
+            assert first.std() > 10 and final.std() > 10
+            assert abs(first.astype(float) - final).mean() > 0.5
+            # The decoded MP4 final frame matches the independently saved simulator render.
+            rendered = imageio.imread(rendered_path)
+            assert np.abs(final.astype(float) - rendered).mean() < 5
+            imageio.imwrite(directory / "first-frame.png", first)
+            imageio.imwrite(directory / "final-frame.png", final)
+        finally:
+            reader.close()
     return result
 
 
