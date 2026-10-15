@@ -1,0 +1,14 @@
+{
+  "request_timeout": 10,
+  "health_timeout": 2,
+  "simulation_timeout": 600,
+  "poll_seconds": 0.5,
+  "poll_attempts": 3,
+  "max_body_bytes": 3000000,
+  "max_raw_points": 10000,
+  "max_skill_points": 6000,
+  "duplicate_tolerance": 0.0001,
+  "simplification_tolerance": 0.0003,
+  "pressure_tolerance": 0.03,
+  "max_point_gap": 0.004
+}

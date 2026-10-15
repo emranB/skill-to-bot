@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-This document is the implementation contract for contributors working on `skill-to-bot`. Architecture 01 controls active scope and ownership, this document controls development practice, and Architecture Final is a roadmap only. Any override must be explicitly recorded in Architecture 01; a roadmap statement never overrides this contract.
+This document is the implementation contract for contributors working on `skill-to-bot`. Drawing Architecture controls active scope and ownership; this document controls development practice. Historical video documents do not override the active drawing contract.
 
 The priorities are clarity, consistency, traceability, maintainability, and a polished but simple user experience.
 
@@ -10,7 +10,7 @@ The priorities are clarity, consistency, traceability, maintainability, and a po
 
 The architecture documents define component ownership and boundaries.
 
-The canonical project name, root directory, repository name, and Compose project name are `skill-to-bot`. The web package name is `@skill-to-bot/web`. `Skill To Robot` names only the simulation pipeline process. Runtime service names are `perception`, `simulation`, `orchestrator`, and `web`.
+The canonical project name, root directory, repository name, and Compose project name are `skill-to-bot`. The web package name is `@skill-to-bot/web`. `Skill To Robot` names only the simulation pipeline process. Runtime service names are `simulation`, `orchestrator`, and `web`.
 
 Canonical rule:
 
@@ -20,12 +20,12 @@ Only formatting changes between media.
 
 Examples:
 
-- Diagram: `Video Input`
-- Directory: `video_input/`
-- Python module: `video_input.py`
-- Test: `test_video_input.py`
+- Diagram: `Stroke Processing`
+- Directory: `stroke_processing/`
+- Python module: `stroke_processing.py`
+- Test: `test_stroke_processing.py`
 
-Do not introduce synonyms such as `retargeting`, `mapping_engine`, or `adapter` when the canonical architecture name is `Skill To Robot`.
+Do not introduce parallel modules such as `mapping_engine` when the canonical architecture name is `Skill To Robot`. Keep the embodiment boundary inside that module, not a new service.
 
 ### Naming conventions
 
@@ -70,7 +70,7 @@ Names must describe purpose. Avoid unexplained abbreviations.
 
 Use automatic formatters where appropriate, but formatter configuration must match these rules.
 
-Install `requirements-dev.txt` into the project environment. Run `python -m ruff check services tests` and `python -m ruff format --check services tests` with that environment's Python, from the repository root. Apply formatting with `python -m ruff format services tests` before committing. Ruff is pinned to 0.11.13 in both the development requirements and `pyproject.toml`; update both together. A different global formatter must not silently change repository formatting.
+Install `requirements-dev.txt` into the project environment. Run `python -m ruff check src/backend tests` and `python -m ruff format --check src/backend tests` with that environment's Python, from the repository root. Apply formatting with `python -m ruff format src/backend tests` before committing. Ruff is pinned to 0.11.13 in both the development requirements and `pyproject.toml`; update both together. A different global formatter must not silently change repository formatting.
 
 ## 4. Comments and documentation
 
@@ -88,7 +88,7 @@ index += 1
 Good:
 
 ```python
-# Skip the first frame because it establishes the calibration baseline.
+# Keep the first point because it anchors the stroke endpoint.
 index += 1
 ```
 
@@ -150,8 +150,8 @@ A value is a constant when it is conceptually fixed by the implementation. Use `
 
 A value belongs in `config.json` when an operator or experiment may reasonably tune it, such as:
 
-- tracking confidence
-- grasp threshold
+- drawing speed
+- contact tolerance
 - camera FPS
 - simulation timestep
 - render dimensions
@@ -179,7 +179,7 @@ Never commit:
 - tokens
 - private keys
 - generated runtime data
-- local camera recordings under `data/live_demos` (retain only the directory marker in Git)
+- personal JSON demonstrations and archived local recordings
 - Python virtual environments
 - `node_modules`
 - IDE-specific state that is not intentionally shared
@@ -198,13 +198,13 @@ Prioritize a small number of complete user workflows and real container/physics 
 When a service regression needs a separate file, use the owning module name:
 
 ```text
-src/video_input/video_input.py
-tests/test_video_input.py
+src/stroke_processing/stroke_processing.py
+tests/test_stroke_processing.py
 ```
 
 Root `tests/` contains cross-service and complete pipeline tests.
 
-Browser tests use Playwright on desktop and mobile. Root tests cover video-to-robot execution, failed manipulation, lifecycle, and isolated dependency recovery. The GitHub workflow builds the runtime and executes these complete paths; isolated service tests are used when their modules change.
+Browser tests use Playwright on desktop and mobile. Root tests cover drawing-to-robot execution, actual ink/trace, paper retargeting, lifecycle, and isolated dependency recovery. The GitHub workflow builds the runtime and executes these complete paths; isolated service tests are used when their modules change.
 
 Tests should be:
 
@@ -216,7 +216,7 @@ Tests should be:
 
 A bug fix should include a regression test when practical.
 
-Calibrated motion tests must check support axes and ordered paths against known projection geometry, then exercise the saved/uploaded path and actual Panda physics. Do not validate depth from raw image Y, or count a projected command completion as physical-direction truth. Record assumed measurements separately from measured calibration; missing intrinsics/corners and unverified physical views remain open Build 02 gates. Run root physics/outage checks and browser execution serially against the shared stack. A rejected episode or communication failure must not trigger an automatic robot-command retry.
+Drawing physics tests verify all six synthetic fixtures, real pen-tip ink, stroke style/pressure, pen-up gaps, tracking and bidirectional shape thresholds, encoded-video agreement with actual rendering and a second reachable paper pose. Optional local personal replays preserve raw bytes. Fixtures are not personally collected challenge evidence. Physical stylus pressure remains a manual gate. Run service physics, root outage/physics and browser execution serially. Communication failure must not trigger automatic robot-command retry.
 
 Do not make a unit test depend on the full Docker stack unless the behavior is genuinely integration-level.
 
@@ -267,7 +267,11 @@ Do not log secrets or full environment contents.
 
 ## 12. UI design principles
 
-Use a compact, readable manipulation workspace with paired source and robot media.
+Use a compact, readable drawing workspace with paired human and robot surfaces.
+
+Home is the default tab: completed human handwriting with native previews, saved demonstrations and direct drawing actions. Show the latest eligible run per human demonstration, up to three; never substitute fixtures, incomplete runs or fabricated previews. Empty installations remain empty until a human drawing completes. Reuse library rows, loading/empty states and request handling across views. Keep one owner for drawing-session state and one non-overlapping polling loop. Run-history deletion requires confirmation, rejects active runs and persists removal while retaining demonstrations, execution evidence and request-ID deduplication. State this retention in the dialog; do not present history removal as disk cleanup.
+
+Introduce the product with brief, factual copy that distinguishes simulation from hardware. Keep one page heading, obvious actions and visible native examples. Motion is CSS-only and restrained: never hide initial content, shift button geometry or ignore reduced-motion preferences. Recording shortcuts are read-only; they must not execute a robot command.
 
 Core characteristics:
 
@@ -283,10 +287,10 @@ Core characteristics:
 - restrained 4-8px corners
 - one obvious primary action per screen or section
 - status shown clearly without visual noise
-- yellow Confirm Mapping action with an exclamation icon, replaced by Run Demo after confirmation
-- inline Logs, Skill, and Observations tabs under Run status
-- live camera preview and Start/Stop Recording with an explicit Yes/No save prompt
-- actual processing/control phases, completed steps, and honest failure states
+- Pointer Events drawing with pen/touch/mouse, optional pressure/tilt and no panning
+- Undo, Clear and one Save & Run action
+- inline Logs, Raw Input, Skill and Trace details
+- actual drawing phases, stroke progress and honest failure states
 
 Avoid:
 
@@ -447,8 +451,8 @@ Destructive actions use error red only when the action is genuinely destructive.
 
 Button labels should normally be short verbs or verb phrases such as:
 
-- `Run Demo`
-- `Upload Video`
+- `Save & Run`
+- `Undo`
 - `Reset`
 - `Try Again`
 
@@ -466,6 +470,7 @@ Design mobile-first.
 
 - Use semantic HTML.
 - Provide keyboard focus states.
+- Keep run-detail tabs keyboard navigable and use a focus-contained, Escape-dismissible confirmation dialog.
 - Maintain readable contrast.
 - Associate labels with controls.
 - Provide text alternatives for meaningful imagery.
@@ -492,17 +497,15 @@ Architecture changes happen deliberately. Implementation must not silently redef
 
 ## 22. Build and implementation handoff
 
-Architecture 01 implementation is authorized. The initial scaffold reserved required paths; replace placeholders only with verified behavior and update `dev_plans/build-01.md` as each stage passes. Do not create roadmap-only paths.
+Drawing Build 03 implementation is authorized. The active architecture is `architecture.md`; `dev_plans/build-03.md` records evidence and manual gates.
 
-- Configuration files define validated non-secret runtime defaults; environment files hold deployment values. Preserve the documented distinction.
-- `contracts/skill.schema.json` is the versioned manipulation contract. Validate it at perception, orchestration, and simulation boundaries; never replace it with a permissive empty schema.
-- Mark tests complete only after they execute and pass. Container and physics tests must use the actual runtime; mocked tests alone cannot establish pipeline success.
-- Run Dockerfiles, Compose, and lifecycle scripts only once they contain reviewed executable behavior. Root and service commands delegate to the common `scripts/lifecycle.sh` implementation.
-- `.gitkeep` retains any required empty directory until it contains real files. Generated run data remains ignored; persistent demonstrations are never removed by cleanup.
-- `.env.example` contains safe defaults; ignored local `.env` files initially mirror it. Never overwrite existing local settings automatically.
-- Linux containers are the runtime target. Root and service `.sh` commands run through the verified Git Bash executable on Windows, or a working Bash environment on Linux/WSL; do not claim native PowerShell support. The current default WSL distribution is not a usable development shell.
-- Before implementation, read the root README, every existing document under `docs/`, and `dev_plans/build-01.md`. Keep requirements, decisions, dependency versions, and interfaces in the existing architecture and development documents. Track execution and validation evidence in the requested build checklist; do not add further Markdown documents unless explicitly requested.
+- Configuration owns non-secret tunable defaults; environment files own deployment values. Validate both service boundaries and finite numerical values.
+- `contracts/demonstration.schema.json` and `contracts/skill.schema.json` strictly separate immutable raw input from robot-independent skill. Keep actual robot traces independent.
+- Mark checks complete only after execution. Synthetic fixtures, actual simulation and physical Surface Pen acceptance are separate evidence categories.
+- Lifecycle scripts delegate to `src/scripts/lifecycle.sh`, preserve demonstrations/runs and never overwrite local settings.
+- Linux containers are the runtime target; use Git Bash on Windows or working Bash on Linux. Do not claim native PowerShell lifecycle support.
+- Keep personal demonstration data out of Git. Do not restore the removed video pick-and-place archive into the active tree.
+- Active docs are README, Drawing Architecture, Development Rules and Build 03. Do not proliferate Markdown.
+- No commit or push without explicit authorization. Archival tracked renames use `git mv` as requested.
 
-Implementation proceeds through the skill contract and deterministic fixtures, simulation environment and robot execution, perception extraction, orchestrator coordination, web presentation, then full pipeline verification. Verify supported dependency versions and platform requirements before selecting packages; no dependency version is approved by the scaffold.
-
-Each implemented stage must validate its inputs, define coordinate frames and units at relevant boundaries, document failure behavior, and pass meaningful tests in its owning service. The final pipeline must satisfy the Architecture 01 success condition and demonstrate dependency failure isolation. Do not call the system runnable or the MVP complete before these checks pass.
+Implement incrementally through strict input, processing, real Panda drawing and measured ink before final UI polish. Quantitative failure must remain visible; never render desired input as simulated output or claim manual hardware validation from generated fixtures.

@@ -14,13 +14,13 @@ def invoke(action: str, service: str = "", failure: bool = False):
     script = 'docker() { printf "DOCKER %s\\n" "$*"; '
     if failure:
         script += 'if [[ "$*" == *" up "* ]]; then return 42; fi; '
-    script += "}; export -f docker; bash scripts/lifecycle.sh " + action + " " + service
+    script += "}; export -f docker; bash src/scripts/lifecycle.sh " + action + " " + service
     return subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=15)
 
 
 def test_scoped_service_stop_and_clean():
-    stop = invoke("stop", "perception")
-    assert stop.returncode == 0 and "stop perception" in stop.stdout
+    stop = invoke("stop", "orchestrator")
+    assert stop.returncode == 0 and "stop orchestrator" in stop.stdout
     clean = invoke("clean", "simulation")
     assert clean.returncode == 0 and "rm -f simulation" in clean.stdout
     assert "down" not in clean.stdout and "--volumes" not in clean.stdout

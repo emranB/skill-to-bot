@@ -1,236 +1,68 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://skill-to-bot.local/contracts/skill.schema.json",
-  "title": "skill-to-bot skill v1",
+  "title": "Embodiment-independent DRAW skill",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "version",
-    "object",
+    "primitive",
     "frame",
-    "units",
-    "start",
-    "goal",
-    "approach_height",
-    "events",
-    "calibration",
-    "source"
+    "aspect_ratio",
+    "source",
+    "strokes"
   ],
   "properties": {
-    "version": {
-      "const": "1.0"
-    },
-    "object": {
-      "const": "can",
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 80
-    },
-    "frame": {
-      "const": "world"
-    },
-    "units": {
-      "const": "meters"
-    },
-    "start": {
-      "type": "array",
-      "items": {
-        "type": "number",
-        "minimum": -2,
-        "maximum": 2
-      },
-      "minItems": 3,
-      "maxItems": 3
-    },
-    "goal": {
-      "type": "array",
-      "items": {
-        "type": "number",
-        "minimum": -2,
-        "maximum": 2
-      },
-      "minItems": 3,
-      "maxItems": 3
-    },
-    "approach_height": {
-      "type": "number",
-      "minimum": 0.04,
-      "maximum": 0.25
-    },
-    "transport": {
-      "type": "array",
-      "minItems": 2,
-      "maxItems": 32,
-      "items": {
-        "type": "array",
-        "minItems": 3,
-        "maxItems": 3,
-        "items": { "type": "number", "minimum": -2, "maximum": 2 }
-      }
-    },
-    "events": {
-      "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
-      "prefixItems": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "type",
-            "time"
-          ],
-          "properties": {
-            "type": {
-              "const": "grasp"
-            },
-            "time": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 120
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "type",
-            "time"
-          ],
-          "properties": {
-            "type": {
-              "const": "transport"
-            },
-            "time": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 120
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "type",
-            "time"
-          ],
-          "properties": {
-            "type": {
-              "const": "place"
-            },
-            "time": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 120
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "type",
-            "time"
-          ],
-          "properties": {
-            "type": {
-              "const": "release"
-            },
-            "time": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 120
-            }
-          }
-        }
-      ],
-      "items": false
-    },
-    "calibration": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "method",
-        "workspace_span",
-        "plane",
-        "roi"
-      ],
-      "properties": {
-        "method": {
-          "enum": ["operator_planar", "support_plane"]
-        },
-        "workspace_span": {
-          "type": "number",
-          "minimum": 0.05,
-          "maximum": 0.5
-        },
-        "plane": {
-          "enum": ["front", "table"]
-        },
-        "roi": {
-          "type": "array",
-          "items": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "minItems": 4,
-          "maxItems": 4
-        },
-        "surface": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["corners", "size", "horizontal_fov", "object_height", "image_aspect"],
-          "properties": {
-            "corners": {
-              "type": "array", "minItems": 4, "maxItems": 4,
-              "items": {
-                "type": "array", "minItems": 2, "maxItems": 2,
-                "items": {"type": "number", "minimum": 0, "maximum": 1}
-              }
-            },
-            "size": {
-              "type": "array", "minItems": 2, "maxItems": 2,
-              "items": {"type": "number", "minimum": 0.05, "maximum": 2}
-            },
-            "horizontal_fov": {"type": "number", "minimum": 35, "maximum": 120},
-            "object_height": {"type": "number", "minimum": 0.01, "maximum": 0.5},
-            "image_aspect": {"type": "number", "minimum": 0.2, "maximum": 5}
-          }
-        }
-      },
-      "allOf": [
-        {
-          "if": {"properties": {"method": {"const": "support_plane"}}},
-          "then": {"required": ["surface"], "properties": {"plane": {"const": "table"}}},
-          "else": {"not": {"required": ["surface"]}}
-        }
-      ]
-    },
+    "version": { "const": "2.0" },
+    "primitive": { "const": "draw" },
+    "frame": { "const": "paper_normalized" },
+    "aspect_ratio": { "type": "number", "minimum": 0.2, "maximum": 5 },
     "source": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "video",
-        "confidence",
-        "samples"
+        "demonstration_id",
+        "type",
+        "pointer_type",
+        "pressure_observed"
       ],
       "properties": {
-        "video": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 100
+        "demonstration_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+        "type": {
+          "enum": ["human_capture", "synthetic_fixture"]
         },
-        "confidence": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
+        "pointer_type": {
+          "enum": ["pen", "touch", "mouse", "mixed"]
         },
-        "samples": {
-          "type": "integer",
-          "minimum": 4
+        "pressure_observed": { "type": "boolean" }
+      }
+    },
+    "strokes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["points"],
+        "properties": {
+          "color": { "type": "string", "pattern": "^#[a-fA-F0-9]{6}$" },
+          "brush_size": { "type": "number", "minimum": 0.002, "maximum": 0.05 },
+          "points": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 6000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x", "y", "t"],
+              "properties": {
+                "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                "y": { "type": "number", "minimum": 0, "maximum": 1 },
+                "t": { "type": "number", "minimum": 0, "maximum": 300 },
+                "pressure": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
         }
       }
     }

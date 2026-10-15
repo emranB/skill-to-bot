@@ -1,3 +1,4 @@
+# Purpose: Build and verify the complete drawing workflow before release.
 name: Build and verify
 
 on:
@@ -14,7 +15,10 @@ concurrency:
 jobs:
   end-to-end:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 100
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -22,50 +26,63 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: src/frontend/package-lock.json
       - name: Install check tools
+        timeout-minutes: 10
         run: |
           python -m pip install -r requirements-dev.txt
-          npm ci --prefix apps/web
-          cd apps/web
+          python -m pip check
+          npm ci --prefix src/frontend
+          cd src/frontend
           npx playwright install --with-deps chromium
-      - name: Check source and build
+      - name: Check source and production bundle
+        timeout-minutes: 5
         run: |
-          python -m ruff --version
-          python -m ruff check services tests
-          python -m ruff format --check services tests
-          npm run format:check --prefix apps/web
-          npm run build --prefix apps/web
+          python -m ruff check src/backend tests
+          python -m ruff format --check src/backend tests
+          npm run format:check --prefix src/frontend
+          npm run build --prefix src/frontend
+          npm audit --omit=dev --audit-level=high --prefix src/frontend
           docker compose config --quiet
-          mkdir -p data/runs data/live_demos
-          bash build-and-run.sh
-      - name: Verify service regressions and production segmentation
+      - name: Build and start drawing stack
+        timeout-minutes: 15
         run: |
-          docker compose run --rm --no-deps perception python -m pytest tests -q
+          mkdir -p data/demonstrations data/runs
+          bash build-and-run.sh
+      - name: Verify service contracts and measured ink
+        timeout-minutes: 10
+        run: |
           docker compose run --rm --no-deps orchestrator python -m pytest tests -q
           docker compose run --rm --no-deps simulation python -m pytest tests -q
-      - name: Verify calibrated depth, manipulation, and failure recovery
+      - name: Verify drawing, paper retargeting and recovery
+        timeout-minutes: 40
         env:
           RUN_INTEGRATION: "1"
-        run: python -m pytest tests -q
-      - name: Verify desktop, mobile, and synthetic-camera workflows
-        run: npm test --prefix apps/web
+        run: python -m pytest tests -q -s --maxfail=1
+      - name: Verify desktop and mobile drawing workflow
+        timeout-minutes: 10
+        run: npm test --prefix src/frontend
       - name: Collect diagnostics
         if: always()
-        run: docker compose logs --no-color > compose.log
+        run: |
+          docker compose ps -a > compose.log
+          docker compose logs --no-color >> compose.log
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: failure()
         with:
           name: failure-diagnostics
           path: |
             compose.log
-            apps/web/test-results/
+            src/frontend/test-results/
             data/runs/
           retention-days: 7
+          if-no-files-found: warn
       - name: Stop runtime
         if: always()
         run: bash clean.sh

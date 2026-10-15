@@ -1,70 +1,65 @@
 # skill-to-bot
 
-`skill-to-bot` is a robot skill transfer project. The initial goal is to convert one human manipulation demonstration video into a compact skill representation and execute the corresponding pick, move, place, and release behavior in simulation.
+One-shot drawing skill retargeting: draw once with pen, touch or mouse, then a simulated Panda reproduces the strokes on paper with a rigid attached pen.
 
-Architecture 01 is implemented and locally verified for the supplied controlled front-camera can demonstration. Four isolated Docker services use HTTP REST/JSON between services and WebSockets for browser status snapshots. The [completed build checklist](dev_plans/build-01.md) records validation evidence and scope limits.
+Human capture uses numeric browser Pointer Events data, not a recognized word. Raw input remains independent of the processed, robot-independent DRAW skill. The robot adapter maps that skill into a paper pose. Output ink comes from the Panda's **actual simulated pen-tip motion** during drawing/contact, never from rendering desired paths as the result.
 
-## Documentation
-
-- [Documentation index](docs/README.md)
-- [Architecture index](docs/architecture/README.md)
-- [Initial MVP architecture](docs/architecture/architecture-01.md)
-- [Final system roadmap](docs/architecture/architecture-final.md)
-- [Development rules](docs/architecture/development-rules.md)
-- [Build 01 checklist](dev_plans/build-01.md)
-- [Build 02 checklist](dev_plans/build-02.md) - Tier 1 selection, support reasoning, ordered transport and cumulative verification.
-
-## Current build target
-
-Maintain the implemented [Architecture 01](docs/architecture/architecture-01.md) MVP.
-
-Do not implement final-roadmap capabilities unless they are promoted into the existing active architecture document.
-
-## Repository setup
-
-The canonical project and repository name is `skill-to-bot`.
-The Git remote is `git@github.com:emranB/skill-to-bot.git`. SSH authentication uses the developer's existing user-level SSH configuration; never store keys in this repository.
-
-Root and service `.env` files contain local, non-secret deployment values and are ignored by Git. Their `.env.example` counterparts provide safe defaults. Docker Compose uses internal service hostnames, while the browser reaches orchestrator through web's `/api` proxy. Lifecycle commands create missing environment files without overwriting local settings.
-
-## Local build
-
-Start Docker Desktop with its Linux engine, then run the root command through Git Bash:
+## Run
+Start Docker Desktop with Linux containers, then use Bash (Git Bash on Windows):
 
 ```bash
 bash build-and-run.sh
 ```
 
-The web application is at [localhost:5173](http://localhost:5173). `bash run.sh`, `bash stop.sh`, and `bash clean.sh` manage this Compose project. Cleanup removes runtime containers and networking, preserving demonstrations and recorded run artifacts. Service directories expose the same four commands for their own container.
+Open [localhost:5173](http://localhost:5173). **Home** shows completed human handwriting and saved demos. It selects the latest native preview per human demonstration, up to three, without hardcoded IDs or synthetic substitutes. A fresh installation shows an empty state until a human drawing completes. Choose **New drawing** or **Workspace**, pick a color and brush size in Human Drawing, then **Save & Run**. Tool changes affect new strokes. Undo removes the last stroke; Clear resets the drawing. Results show the actual simulator recording, paper proximity, physical contact, tracking/shape error and inline Logs, Raw Input, Skill and Trace. Playback offers 1x, 2x, 5x and 10x without changing physics. Run history reopens a saved demonstration. Its trash button confirms removal from history, preserving the demonstration and execution files; active runs cannot be deleted. Normal runs reprocess immutable raw input with current settings; **Run on shifted paper** reuses the exact saved skill at a modest second pose.
 
-The controlled MVP uses a stationary-camera video, a rough object hint, and a workspace span. Draw a box or click the object, click the yellow **Confirm Mapping** action, then **Run Demo**. Editing the mapping or choosing another video clears confirmation. Run status shows the current robot phase and inline Logs, Skill, and Observations tabs. The hint is snapped to the object. Lift means separation from the support surface. Grasp and release events are motion estimates; camera depth is not recovered. The simulation verifies physical lift, placement, and release independently.
+Home introduces the drawing-to-robot workflow in plain language, with real human results rather than promotional substitutes. **Watch a run** opens an existing native recording; it never starts a robot command. The compact navigation, hover/focus feedback and short entrance transitions share the light interface. Reduced-motion preferences disable decorative motion, and results remain visible from the first frame.
 
-Build 02 adds focused-crop segmentation, visible YOLO/GrabCut provenance, refreshed object bounds, and ordered transport. Legacy front mapping remains sideways-only; projected table remains an image approximation, not physical depth. **Calibrated support** adds measured table axes and scale-assisted support separation for a stationary pinhole camera and rigid upright object. It requires four visible rectangle corners (near-left, near-right, far-right, far-left), measured width/depth and object height in meters, and the camera's actual horizontal field of view. Click a selected reference corner in Mapping or enter its normalized coordinates. Reconfirm after edits or source changes. Robot width scales the measured lateral rectangle into Panda workspace; depth uses the same ratio. Do not guess dimensions or field of view. Occlusion, clipped geometry, changing focus/zoom, rotation or inconsistent measurements reject calibrated processing. This is controlled approximate geometry, not general monocular 3D. Observations expose support coordinates and estimated height. Panda still checks physical grasp, clearance, every waypoint and release. Tier 1 remains unfrozen pending calibrated physical evidence and hosted verification.
+`bash run.sh`, `bash stop.sh` and `bash clean.sh` manage only this project. Cleanup preserves personal demonstrations and run artifacts. Each service has equivalent scoped scripts. Environment examples hold safe deployment defaults; existing local environment files are never overwritten. The Git remote uses SSH; keys stay outside the repository. No automatic commit or push occurs.
 
-## Live Camera
+## Data and Architecture
+Three services: React/TypeScript/Vite web, FastAPI orchestrator and robosuite 1.4.1 / MuJoCo 2.3.7 simulation. REST/JSON suffices; no active vision service, broker, database, recognition or LIBERO task.
 
-For camera capture, select **Live Camera**, allow camera permission, hint the object and set the workspace span, then **Confirm Mapping**. **Start Recording** and **Stop Recording** control capture in the human demonstration view. Stopping opens a Yes/No prompt: **No** discards the unsaved clip and returns to the live feed; **Yes** saves it first, then starts the full pipeline automatically. A saved clip remains available if processing or execution fails.
+- Raw demonstrations: `data/demonstrations/<id>.json`, stored unchanged and reusable.
+- Skill: normalized paper X-right/Y-up, ordered strokes, color, normalized brush width, relative time, source aspect and provided non-mouse pressure; no Panda/world pose.
+- Runs: `data/runs/<id>/run.json`, `skill.json`, `robot-plan.json`, `trace.json`, `simulation-result.json`, `simulation.mp4`, `simulator-final.png`.
+- Robot trace: independently measured simulator tip/contact/ink state in paper-local meters.
 
-Camera capture is video-only and needs localhost or HTTPS plus browser camera/MediaRecorder support. Recordings stop automatically at 59 seconds to stay within the 60-second processing limit. Nothing is uploaded before Yes. The orchestrator normalizes WebM/MP4 capture to H.264 MP4, capped at 100 MB, and stores `data/live_demos/live_demo_<UTC timestamp>_<unique suffix>.mp4`. Live demos are local, ignored by Git, and preserved by cleanup. Live capture uses the same perception path and calibrated support inputs as an uploaded video. Keep the camera still with fixed intrinsics. Insufficient scale/pose evidence is rejected; general depth is not reconstructed.
+Drawing preserves aspect and fits inside reachable paper margins. The Panda approaches, descends, follows a continuous speed-bounded trajectory, lifts and travels between strokes. Drawing ink uses a bounded visual geometry pool. Actual MuJoCo contact is reported; a bounded 1.5 mm geometric tip-to-paper tolerance also gates deposition to handle numerical contact jitter. No ink is deposited during travel or lifting.
 
-## Validation
+Mouse capture omits pressure. Pen/touch pressure is saved and reproduced when provided, including constant input values. `pressure_observed` reports non-mouse variation, not a claim of calibrated force. Missing input uses configured constant pressure (0.5), labeled as fallback rather than a measurement. Release-event zeros remain in immutable raw input but do not erase the processed stroke endpoint. Brush size is full width as a fraction of canvas height, preserving scale on retargeting. Simulated ink radius is half the mapped brush width times `(0.5 + effective_pressure)`; preview uses the same rule. Color and width remain fixed within captured strokes. Neither pressure nor brush width implies physical force control. Tilt/twist are saved when exposed but not physically reproduced.
 
-Camera browser tests inject a synthetic stream and use the real MediaRecorder, save endpoint, perception, and physics. No physical camera is used in automated verification. The supplied human-video pipeline is verified separately.
+Video frames come directly from the MuJoCo offscreen camera while Panda physics runs. The closer camera makes paper detail visible. Frame times, measured sample counts and ink counts are recorded in `trace.json`; the final independent simulator PNG is compared against the decoded MP4 in end-to-end tests. This is a recorded simulator feed, not a live streaming endpoint or an input-canvas reconstruction.
 
+## Verification
 ```bash
 python -m pip install -r requirements-dev.txt
-python -m ruff check services tests
-python -m ruff format --check services tests
-RUN_INTEGRATION=1 python -m pytest tests -q
-cd apps/web
-npm ci
+python -m ruff check src/backend tests
+python -m ruff format --check src/backend tests
+npm ci --prefix src/frontend
+npm run format:check --prefix src/frontend
+npm run build --prefix src/frontend
+npm audit --omit=dev --audit-level=high --prefix src/frontend
+docker compose config --quiet
+docker compose run --rm --no-deps orchestrator python -m pytest tests -q
+docker compose run --rm --no-deps simulation python -m pytest tests -q
+RUN_INTEGRATION=1 python -m pytest tests -q -s
+cd src/frontend
 npx playwright install chromium
-npm run build
 npm test
 ```
 
-Primary verification uses the real running stack. `npm test` covers real desktop execution, inline run details, mapping changes, mobile media/layout, and readable failures. Root tests cover the pipeline, failed physical manipulation, lifecycle, and dependency recovery. Do not run outage tests during an active manipulation. Small service regressions remain for contract boundaries and unsafe outcomes; run them with `docker compose run --rm --no-deps <service> python -m pytest tests -q` when changing that service.
+Run service physics, root outage/physics and browser execution serially. Six deterministic fixtures cover block BOT, cursive hello, star, house, double cursive hello and fine loops. Generate them with `python tests/fixtures/generate_drawings.py`. They are explicitly `synthetic_fixture`, **not personally collected challenge evidence**. Browser automation also cannot validate physical Surface Pen pressure. Set `DRAWING_DEMONSTRATIONS` to comma-separated local demonstration IDs to include immutable personal capture replays.
 
-The [GitHub workflow](.github/workflows/build.yml) builds all four images and runs these end-to-end checks on pushes and pull requests. It uses pinned actions, read-only repository permissions, bounded execution, and failure diagnostics. Equivalent checks run locally; hosted verification of uncommitted changes requires an explicit commit and push. Nothing is published or deployed by CI.
+The [build workflow](.github/workflows/build.yml) checks source, builds the three images and runs service, real physics and browser tests. Local checks do not establish hosted CI success. Current results and manual hardware gates are in [Build 03](dev_plans/build-03.md).
 
-The existing architecture and development documents define the authoritative requirements. The explicitly requested build checklists track execution and verification without overriding those requirements. Build 01 records the verified baseline. Build 02 records the Tier 1 perception extension. Maintain these documents in place; add further documents only when explicitly requested.
+CI caches pinned installation inputs, rejects unused TypeScript code, checks dependency consistency, bounds each verification stage and allows cleanup time in the overall job budget. Physics tests stop at the first failure; service, root and browser physics run serially. Failure diagnostics are retained and project containers are cleaned up. Production nginx applies same-origin content restrictions and security headers, caches hashed assets and revalidates the application document. Compose binds services to localhost. Remote deployment requires the server/provider identity, deployment directory, authentication and TLS setup; no destination or credentials are guessed.
+
+## Scope and History
+Tier 1 supports bounded multi-stroke 2D paths on a small fixed horizontal paper plane and modest reachable pose shifts. It does not include pen pickup, handwriting recognition, real robot hardware, physical tilt/force reproduction or arbitrary paper poses. Excessive data, unreachable poses, contact failures, deadlines and quantitative partial failures are reported rather than silently accepted.
+
+Physical Surface Pen acceptance remains pending until an operator tests the device. Personal mouse captures are available for replay but do not establish stylus validation. Synthetic and simulated success must not be described as physical hardware acceptance.
+
+The active tree is `src/frontend`, `src/backend/orchestrator`, `src/backend/simulation`, and `src/scripts`. The old video pick-and-place archive is not part of this repository. Local ignored recordings, if any remain, stay under `data/deprecated/` and are not built or tested.
+
+Authoritative docs: [Drawing Architecture](docs/architecture/architecture.md), [Development Rules](docs/architecture/development-rules.md), [Build 03](dev_plans/build-03.md).

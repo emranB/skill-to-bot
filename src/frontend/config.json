@@ -1,0 +1,12 @@
+{
+  "statusPollSeconds": 1,
+  "requestTimeoutSeconds": 30,
+  "canvasAspectRatio": 1.5,
+  "maxSamples": 10000,
+  "maxStrokes": 128,
+  "maxSessionMs": 300000,
+  "pressureTolerance": 0.03,
+  "defaultColor": "#202124",
+  "defaultBrushSize": 0.006,
+  "defaultPressure": 0.5
+}

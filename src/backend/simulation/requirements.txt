@@ -1,0 +1,10 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+httpx==0.28.1
+jsonschema==4.23.0
+numpy==1.26.4
+robosuite==1.4.1
+mujoco==2.3.7
+imageio==2.37.0
+imageio-ffmpeg==0.6.0
+pytest==8.3.5

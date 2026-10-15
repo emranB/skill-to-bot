@@ -8,9 +8,7 @@
 **/playwright-report
 **/*.tsbuildinfo
 **/.env
-data/runs
-data/live_demos
-data/demonstrations
-apps/web/dist
-data/fixtures
+**/*.env.local
+data
+src/frontend/dist
 compose.log

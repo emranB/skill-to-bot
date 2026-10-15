@@ -1,4 +1,4 @@
-# Purpose: Verify the complete supplied-human-video to Panda pipeline and honest invalid-input failures.
+# Purpose: Verify drawing and unchanged-skill retargeting through real Panda physics.
 import json
 import os
 import time
@@ -6,174 +6,150 @@ import uuid
 from pathlib import Path
 
 import httpx
+import imageio.v2 as imageio
+import numpy as np
 import pytest
-from fixtures.generate_video import generate_calibrated_transport, generate_transport
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
         os.environ.get("RUN_INTEGRATION") != "1",
-        reason="Set RUN_INTEGRATION=1 with the Docker stack running.",
+        reason="Set RUN_INTEGRATION=1 with the drawing stack running.",
     ),
 ]
-BASE = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8000")
-CALIBRATION = {
-    "method": "operator_planar",
-    "plane": "front",
-    "workspace_span": 0.3,
-    "roi": [0.67, 0.23, 0.17, 0.5],
-}
+ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_complete_pipeline():
-    with httpx.Client(base_url=BASE, timeout=10) as client:
-        assert client.get("/ready").status_code == 200
-        payload = {
-            "video": "pop-can-pick-up-right-to-left-1.mp4",
-            "calibration": CALIBRATION,
-            "request_id": uuid.uuid4().hex,
-        }
-        response = client.post("/runs", json=payload)
-        assert response.status_code == 202, response.text
-        run_id = response.json()["run_id"]
-        assert client.post("/runs", json=payload).json()["run_id"] == run_id
-        assert client.post("/reset").status_code == 409
-        deadline = time.monotonic() + 480
-        while time.monotonic() < deadline:
-            run = client.get("/runs/" + run_id).json()
-            if run["status"] != "running":
-                break
-            time.sleep(0.5)
-        assert run["status"] == "completed", run
-        assert run["result"]["success"] and run["result"]["lifted"] and run["result"]["released"]
-        assert run["result"]["position_error_m"] <= 0.035
-        assert client.get(f"/runs/{run_id}/artifacts/skill.json").status_code == 200
-        assert len(client.get(f"/runs/{run_id}/artifacts/simulation.mp4").content) > 1000
-        observations = client.get(f"/runs/{run_id}/artifacts/observations.json").json()
-        held = min(observations, key=lambda sample: abs(sample["time"] - 7))
-        assert observations[0]["segmentation_source"] == "yolo"
-        assert 0.08 < held["u"] < 0.18, "The held object must not switch to the demonstrator."
-        assert held["box"][0] < 0.1 and held["box"][2] < 0.25
-        assert client.post("/reset").status_code == 200
+def wait_run(client, run_id):
+    deadline = time.monotonic() + 600
+    while time.monotonic() < deadline:
+        response = client.get("/runs/" + run_id)
+        response.raise_for_status()
+        run = response.json()
+        if run["status"] != "running":
+            return run
+        time.sleep(0.5)
+    pytest.fail("Drawing did not finish within the bounded deadline.")
 
 
-def test_failed_physical_manipulation_is_not_success():
-    skill = json.loads((Path(__file__).parent / "fixtures/skill.json").read_text())
-    skill["approach_height"] = 0.04
-    run_id = uuid.uuid4().hex
-    with httpx.Client(base_url="http://localhost:8002", timeout=10) as client:
-        response = client.post("/execute", json={"run_id": run_id, "skill": skill})
-        assert response.status_code == 202, response.text
-        deadline = time.monotonic() + 300
-        while time.monotonic() < deadline:
-            job = client.get("/jobs/" + run_id).json()
-            if job["status"] != "running":
-                break
-            time.sleep(0.5)
-        assert job["status"] == "failed", job
-        assert job.get("error") and not job.get("result", {}).get("success", False)
-        assert client.post("/reset").status_code == 200
-
-
-def test_invalid_video_and_selection():
-    with httpx.Client(base_url=BASE, timeout=10) as client:
-        assert (
-            client.post(
-                "/demonstrations", files={"file": ("invalid.mp4", b"not video")}
-            ).status_code
-            == 422
-        )
-        invalid = {**CALIBRATION, "roi": [0.9, 0.9, 0.3, 0.3]}
-        assert (
-            client.post(
-                "/runs",
-                json={
-                    "video": "pop-can-pick-up-right-to-left-1.mp4",
-                    "calibration": invalid,
-                    "request_id": uuid.uuid4().hex,
-                },
-            ).status_code
-            == 422
-        )
-
-
-def test_recorded_return_path_reaches_panda_in_order(tmp_path):
-    video = generate_transport(tmp_path / "return.mp4")
-    with httpx.Client(base_url=BASE, timeout=15) as client:
-        with video.open("rb") as stream:
-            response = client.post(
-                "/demonstrations", files={"file": ("return.mp4", stream, "video/mp4")}
-            )
-        assert response.status_code == 201, response.text
-        saved = response.json()["name"]
-        payload = {
-            "video": saved,
-            "request_id": uuid.uuid4().hex,
-            "calibration": {**CALIBRATION, "roi": [0.65, 0.2, 0.22, 0.58]},
-        }
-        started = client.post("/runs", json=payload)
-        assert started.status_code == 202, started.text
-        run_id = started.json()["run_id"]
-        deadline = time.monotonic() + 480
-        while time.monotonic() < deadline:
-            run = client.get("/runs/" + run_id).json()
-            if run["status"] != "running":
-                break
-            time.sleep(0.5)
-        assert run["status"] == "completed", run
-        path = run["skill"]["transport"]
-        assert len(path) >= 3 and abs(path[-1][1]) < 0.02
-        assert max(point[1] for point in path) > 0.07
-        measured = run["result"]["transport"]
-        assert len(measured) == len(path) - 1
-        assert all(point["error_m"] <= 0.035 for point in measured)
-        assert max(point["actual"][1] - run["result"]["initial"][1] for point in measured) > 0.05
-        assert client.post("/reset").status_code == 200
+def verify(client, run):
+    assert run["status"] == "completed", run.get("error")
+    result = run["result"]
+    assert result["success"]
+    assert result["mean_path_error_m"] <= 0.001 and result["max_path_error_m"] <= 0.002
+    assert result["max_shape_error_m"] <= 0.0008
+    assert result["visibility"]["paper_fraction"] >= 0.05 and result["visibility"]["ink_pixels"] > 0
+    assert result["contact_coverage"] >= 0.95
+    assert result["strokes_completed"] == result["stroke_count"]
+    prefix = "/runs/" + run["run_id"] + "/artifacts/"
+    for name in (
+        "run.json",
+        "skill.json",
+        "trace.json",
+        "robot-plan.json",
+        "simulation-result.json",
+    ):
+        assert client.get(prefix + name).status_code == 200
+    trace = client.get(prefix + "trace.json").json()
+    assert trace["ink"] and trace["samples"]
+    measured = {
+        (sample["t"], sample["stroke"], *sample["actual_local"])
+        for sample in trace["samples"]
+        if sample["phase"] == "draw" and sample["contact"]
+    }
+    positions = {(stroke, *local) for _, stroke, *local in measured}
+    for mark in trace["ink"]:
+        assert (mark["t"], mark["stroke"], *mark["local"]) in measured
+        assert (mark["stroke"], *mark["segment_start"]) in positions
+        stroke = run["skill"]["strokes"][mark["stroke"]]
+        assert mark["color"] == stroke.get("color", "#202124")
+        if "pressure" not in stroke["points"][0]:
+            assert mark["pressure_source"] == "constant" and mark["pressure"] == 0.5
+    frames = trace["video"]["frames"]
+    assert trace["video"]["renderer"] == "MuJoCo"
+    assert frames[0]["ink_count"] == 0 and frames[-1]["ink_count"] == len(trace["ink"])
+    assert trace["samples"][-1]["t"] == result["execution_duration_s"]
+    assert all(a["t"] < b["t"] for a, b in zip(trace["samples"], trace["samples"][1:]))
+    assert all(s["ink_radius"] is None for s in trace["samples"] if s["phase"] != "draw")
+    assert set(s["stroke"] for s in trace["samples"] if s["phase"] == "draw") == set(
+        range(result["stroke_count"])
+    )
+    video = client.get(prefix + "simulation.mp4")
+    assert video.status_code == 200 and len(video.content) > 10000
+    directory = ROOT / "data/runs" / run["run_id"]
+    reader = imageio.get_reader(
+        str(directory / "simulation.mp4"),
+        input_params=["-threads", "1"],
+        output_params=["-threads", "1"],
+    )
+    try:
+        count = reader.count_frames()
+        assert count > 10
+        first, final = reader.get_data(0), reader.get_data(count - 1)
+        assert count == len(frames)
+        assert first.std() > 10 and final.std() > 10
+        assert abs(first.astype(float) - final).mean() > 0.5
+        # The decoded MP4 final frame matches the independently saved simulator render.
+        rendered = imageio.imread(directory / "simulator-final.png")
+        assert np.abs(final.astype(float) - rendered).mean() < 5
+        imageio.imwrite(directory / "first-frame.png", first)
+        imageio.imwrite(directory / "final-frame.png", final)
+    finally:
+        reader.close()
+    return result
 
 
 @pytest.mark.parametrize(
-    "path,endpoint",
-    [
-        ([[0, 0], [0, 0.08]], "/demonstrations"),
-        ([[0, 0], [0, -0.08]], "/live-demonstrations"),
-        ([[0, 0], [0, 0.08], [0.08, 0.08], [0.08, 0], [0.001, 0]], "/demonstrations"),
-    ],
+    "name", sorted(p.stem for p in (ROOT / "tests/fixtures/drawings").glob("*.json"))
 )
-def test_calibrated_lift_depth_and_order_reach_physics(tmp_path, path, endpoint):
-    video, calibration = generate_calibrated_transport(tmp_path / "calibrated.mp4", path)
-    with httpx.Client(base_url=BASE, timeout=15) as client:
-        checked = client.post("/calibration", json=calibration)
-        assert checked.status_code == 200, checked.text
-        with video.open("rb") as stream:
-            uploaded = client.post(
-                endpoint, files={"file": ("calibrated.mp4", stream, "video/mp4")}, timeout=105
-            )
-        assert uploaded.status_code == 201, uploaded.text
-        started = client.post(
-            "/runs",
-            json={
-                "video": uploaded.json()["name"],
-                "request_id": uuid.uuid4().hex,
-                "calibration": calibration,
-            },
-        )
+def test_full_drawing_pipeline(name):
+    raw = json.loads((ROOT / "tests/fixtures/drawings" / f"{name}.json").read_text())
+    with httpx.Client(base_url="http://localhost:8000", timeout=20) as client:
+        saved = client.post("/demonstrations", json=raw)
+        assert saved.status_code == 201, saved.text
+        identity = saved.json()["id"]
+        payload = {"demonstration_id": identity, "request_id": uuid.uuid4().hex}
+        started = client.post("/runs", json=payload)
         assert started.status_code == 202, started.text
         run_id = started.json()["run_id"]
-        deadline = time.monotonic() + 480
-        while time.monotonic() < deadline:
-            run = client.get("/runs/" + run_id).json()
-            if run["status"] != "running":
-                break
-            time.sleep(0.5)
-        assert run["status"] == "completed", run
-        expected = [[depth * 0.75, -lateral * 0.75] for lateral, depth in path]
-        actual = [point[:2] for point in run["skill"]["transport"]]
-        assert len(actual) == len(expected)
-        for point, truth in zip(actual, expected):
-            assert point == pytest.approx(truth, abs=0.008)
-        result = run["result"]
-        assert result["lifted"] and result["grasped"] and result["released"] and result["success"]
-        assert len(result["transport"]) == len(expected) - 1
-        assert all(point["error_m"] <= 0.035 for point in result["transport"])
-        assert result["position_error_m"] <= 0.035
-        assert client.post("/reset").status_code == 200
+        assert client.post("/runs", json=payload).json()["run_id"] == run_id
+        run = wait_run(client, run_id)
+        result = verify(client, run)
+        assert client.get("/demonstrations/" + identity).json() == raw
+        print(name, run_id, json.dumps(result))
+        if name == "star":
+            shifted = client.post(
+                "/runs",
+                json={
+                    "demonstration_id": identity,
+                    "request_id": uuid.uuid4().hex,
+                    "reuse_run_id": run_id,
+                    "paper_pose": {"offset": [0.015, -0.01], "yaw": 0.12},
+                },
+            )
+            assert shifted.status_code == 202, shifted.text
+            second = wait_run(client, shifted.json()["run_id"])
+            verify(client, second)
+            assert (
+                client.get("/runs/" + second["run_id"] + "/artifacts/skill.json").json()
+                == run["skill"]
+            )
+            print("shifted-star", second["run_id"], json.dumps(second["result"]))
+
+
+@pytest.mark.parametrize("identity", os.environ.get("DRAWING_DEMONSTRATIONS", "").split(","))
+def test_saved_human_drawing(identity):
+    if not identity:
+        pytest.skip("Set DRAWING_DEMONSTRATIONS to replay personal local captures.")
+    with httpx.Client(base_url="http://localhost:8000", timeout=20) as client:
+        raw = client.get("/demonstrations/" + identity)
+        assert raw.status_code == 200
+        assert raw.json()["source"]["type"] == "human_capture"
+        started = client.post(
+            "/runs", json={"demonstration_id": identity, "request_id": uuid.uuid4().hex}
+        )
+        assert started.status_code == 202, started.text
+        run = wait_run(client, started.json()["run_id"])
+        verify(client, run)
+        assert client.get("/demonstrations/" + identity).content == raw.content
+        print("personal-capture", identity, run["run_id"], json.dumps(run["result"]))
