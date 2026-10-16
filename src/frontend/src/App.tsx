@@ -44,6 +44,8 @@ export default function App() {
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<Run>();
+  const [headerHeight, setHeaderHeight] = useState(64);
+  const headerRef = useRef<HTMLElement>(null);
   // Ignore stale poll responses that arrive after a confirmed history removal.
   const removed = useRef(new Set<string>());
   // Home shows completed human work, once per demonstration, never test fixtures.
@@ -61,6 +63,15 @@ export default function App() {
   const preview = featured.find((item) => item.video_available);
   const busy = runs.some((item) => item.status === 'running');
   const locked = busy || pending;
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header || typeof ResizeObserver === 'undefined') return;
+    const sync = () => setHeaderHeight(Math.ceil(header.getBoundingClientRect().height));
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (view !== 'demos' && view !== 'home') return;
     const controller = new AbortController();
@@ -194,7 +205,7 @@ export default function App() {
 
   return (
     <>
-      <header className="app-header">
+      <header ref={headerRef} className="app-header">
         <button
           className="brand"
           aria-label="skill-to-bot Home"
@@ -234,7 +245,7 @@ export default function App() {
           </nav>
         </div>
       </header>
-      <main>
+      <main style={{ ['--header-offset' as string]: `${headerHeight}px` }}>
         {(!connected || error) && (
           <p role="alert" className="alert">
             {connected ? error : 'Connection lost. Reconnecting...'}

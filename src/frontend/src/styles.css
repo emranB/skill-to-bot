@@ -106,12 +106,15 @@ small {
   color: var(--color-text-secondary);
 }
 .app-header {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 20;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  width: 100%;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 8px 24px rgba(32, 33, 36, 0.04);
+  box-shadow: 0 8px 24px rgba(32, 33, 36, 0.06);
   padding-inline: max(28px, calc((100% - 1216px) / 2));
   display: grid;
   grid-template-areas: 'brand nav service';
@@ -260,7 +263,7 @@ nav button[aria-current] .nav-count {
 main {
   max-width: 1200px;
   margin: auto;
-  padding: 40px 32px 64px;
+  padding: calc(var(--header-offset, 64px) + 40px) 32px 64px;
 }
 .page-heading,
 .section-heading {
@@ -913,7 +916,7 @@ dialog .dialog-name {
     display: none;
   }
   main {
-    padding: 24px 16px 32px;
+    padding: calc(var(--header-offset, 64px) + 24px) 16px 32px;
   }
   .home-intro {
     padding-top: 4px;
