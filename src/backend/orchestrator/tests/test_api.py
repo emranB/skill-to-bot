@@ -64,6 +64,34 @@ def test_api_failures(client):
     assert client.get("/ready").status_code == 503
 
 
+def test_pages_origin_private_network_preflight(client):
+    pages = "https://skill-to-bot.pages.dev"
+    denied = client.options(
+        "/health",
+        headers={
+            "Origin": "https://evil.example",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Private-Network": "true",
+        },
+    )
+    assert denied.status_code == 403
+    allowed = client.options(
+        "/health",
+        headers={
+            "Origin": pages,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Private-Network": "true",
+        },
+    )
+    assert allowed.status_code == 204
+    assert allowed.headers["access-control-allow-origin"] == pages
+    assert allowed.headers["access-control-allow-private-network"] == "true"
+    health = client.get("/health", headers={"Origin": pages})
+    assert health.status_code == 200
+    assert health.headers["access-control-allow-origin"] == pages
+    assert health.headers["access-control-allow-private-network"] == "true"
+
+
 def test_delete_history_preserves_source_and_evidence(client, tmp_path):
     identity = client.post("/demonstrations", json=raw()).json()["id"]
     run_id = "b" * 32

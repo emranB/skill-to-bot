@@ -1,4 +1,5 @@
 {
+  "localApiBase": "http://127.0.0.1:8000",
   "statusPollSeconds": 1,
   "requestTimeoutSeconds": 30,
   "canvasAspectRatio": 1.5,

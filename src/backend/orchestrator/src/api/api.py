@@ -5,12 +5,13 @@ import os
 import re
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from jsonschema import ValidationError
 from pydantic import BaseModel, Field
 
@@ -34,20 +35,73 @@ async def lifespan(app):
     await app.state.workflow.close()
 
 
+WEB_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("WEB_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
+WEB_ORIGIN_REGEX = re.compile(
+    os.environ.get(
+        "WEB_ORIGIN_REGEX",
+        r"https://([a-z0-9-]+\.)?skill-to-bot\.pages\.dev",
+    )
+)
+
+
+def allowed_origin(origin: str | None) -> str | None:
+    """Return origin when it matches WEB_ORIGINS or WEB_ORIGIN_REGEX."""
+    if not origin:
+        return None
+    if origin in WEB_ORIGINS or WEB_ORIGIN_REGEX.fullmatch(origin):
+        return origin
+    return None
+
+
 app = FastAPI(title="skill-to-bot orchestrator", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("WEB_ORIGINS", "http://localhost:5173").split(","),
+    allow_origins=WEB_ORIGINS,
+    allow_origin_regex=WEB_ORIGIN_REGEX.pattern,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type"],
 )
 
 
 @app.middleware("http")
-async def bounded_body(request: Request, call_next):
-    if request.method == "POST":
-        from fastapi.responses import JSONResponse
+async def allow_private_network(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """Allow Chrome private-network preflights from hosted Pages to loopback."""
+    origin = allowed_origin(request.headers.get("Origin"))
+    if (
+        request.method == "OPTIONS"
+        and request.headers.get("Access-Control-Request-Private-Network") == "true"
+    ):
+        if not origin:
+            return Response(status_code=403)
+        return Response(
+            status_code=204,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "GET, POST, DELETE",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Private-Network": "true",
+                "Vary": "Origin",
+            },
+        )
+    response = await call_next(request)
+    if origin:
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
 
+
+@app.middleware("http")
+async def bounded_body(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    if request.method == "POST":
         body = bytearray()
         async for chunk in request.stream():
             body.extend(chunk)

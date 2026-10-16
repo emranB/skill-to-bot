@@ -1,6 +1,7 @@
 // Purpose: Play actual simulator recordings and expose playback and retargeting controls.
 import { useRef, useState } from 'react';
 import { ArrowUpRight, LoaderCircle, PenLine } from 'lucide-react';
+import { apiUrl } from './api';
 import { phaseName, type Run } from './RunStatus';
 
 export default function Reproduction({
@@ -46,7 +47,7 @@ export default function Reproduction({
             ref={video}
             key={run.run_id}
             aria-label="Panda drawing simulation"
-            src={`/api/runs/${run.run_id}/artifacts/simulation.mp4`}
+            src={apiUrl(`/runs/${run.run_id}/artifacts/simulation.mp4`)}
             controls
             autoPlay
             muted

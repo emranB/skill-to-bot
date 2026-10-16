@@ -1,6 +1,7 @@
 // Purpose: Present saved work consistently and confirm removal from run history.
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, LoaderCircle, PenLine, Trash2 } from 'lucide-react';
+import { apiUrl } from './api';
 import type { Run } from './RunStatus';
 
 export type SavedDemo = { id: string; strokes: number };
@@ -37,7 +38,7 @@ export function RunList({
               <PenLine size={24} />
               {run.thumbnail_available && (
                 <img
-                  src={`/api/runs/${run.run_id}/artifacts/simulator-final.png`}
+                  src={apiUrl(`/runs/${run.run_id}/artifacts/simulator-final.png`)}
                   alt={`Simulator result: ${runTitle(run)}`}
                   loading={cards ? 'eager' : 'lazy'}
                   onError={(event) => {
