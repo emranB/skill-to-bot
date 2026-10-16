@@ -44,8 +44,6 @@ export default function App() {
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<Run>();
-  const [headerHeight, setHeaderHeight] = useState(64);
-  const headerRef = useRef<HTMLElement>(null);
   // Ignore stale poll responses that arrive after a confirmed history removal.
   const removed = useRef(new Set<string>());
   // Home shows completed human work, once per demonstration, never test fixtures.
@@ -63,15 +61,6 @@ export default function App() {
   const preview = featured.find((item) => item.video_available);
   const busy = runs.some((item) => item.status === 'running');
   const locked = busy || pending;
-  useEffect(() => {
-    const header = headerRef.current;
-    if (!header || typeof ResizeObserver === 'undefined') return;
-    const sync = () => setHeaderHeight(Math.ceil(header.getBoundingClientRect().height));
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(header);
-    return () => observer.disconnect();
-  }, []);
   useEffect(() => {
     if (view !== 'demos' && view !== 'home') return;
     const controller = new AbortController();
@@ -204,8 +193,8 @@ export default function App() {
   const openDemo = (id: string) => void loadDemo(id);
 
   return (
-    <>
-      <header ref={headerRef} className="app-header">
+    <div className="app-shell">
+      <header className="app-header">
         <button
           className="brand"
           aria-label="skill-to-bot Home"
@@ -233,19 +222,24 @@ export default function App() {
             {views.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
+                aria-label={label}
                 aria-current={view === id ? 'page' : undefined}
                 disabled={drawing || pending}
                 onClick={() => setView(id)}
               >
-                <Icon size={18} />
-                <span>{label}</span>
-                {id === 'history' && <span className="nav-count">{runs.length}</span>}
+                <Icon size={18} aria-hidden="true" />
+                <span aria-hidden="true">{label}</span>
+                {id === 'history' && (
+                  <span className="nav-count" aria-hidden="true">
+                    {runs.length}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
         </div>
       </header>
-      <main style={{ ['--header-offset' as string]: `${headerHeight}px` }}>
+      <main>
         {(!connected || error) && (
           <p role="alert" className="alert">
             {connected ? error : 'Connection lost. Reconnecting...'}
@@ -437,6 +431,6 @@ export default function App() {
           onConfirm={deleteRun}
         />
       )}
-    </>
+    </div>
   );
 }

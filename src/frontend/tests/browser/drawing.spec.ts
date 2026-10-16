@@ -237,13 +237,13 @@ test('captured drawing saves and executes with trace, video and history', async 
     path: '../../data/runs/drawing-result-desktop.png',
     fullPage: true,
   });
-  await page.getByRole('button', { name: /Run history/ }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
   const row = page.locator(`[data-run-id="${runId}"]`);
   await expect(row).toBeVisible();
   await row.locator('.run-open').click();
   await expect(video).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run on shifted paper' })).toBeEnabled();
-  await page.getByRole('button', { name: /Run history/ }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
   await page.screenshot({ path: '../../data/runs/history-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await row.getByRole('button', { name: /Delete .* from history/ }).click();
@@ -275,7 +275,7 @@ test('captured drawing saves and executes with trace, video and history', async 
   await expect(dialog).not.toBeVisible();
   await expect(row).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', { name: /Run history/ }).click();
+  await page.getByRole('button', { name: 'History', exact: true }).click();
   await expect(row).toHaveCount(0);
   expect((await page.request.get(`/api/demonstrations/${run.demonstration_id}`)).ok()).toBe(true);
   expect((await page.request.get(`/api/runs/${runId}/artifacts/trace.json`)).ok()).toBe(true);
