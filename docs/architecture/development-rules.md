@@ -70,7 +70,7 @@ Names must describe purpose. Avoid unexplained abbreviations.
 
 Use automatic formatters where appropriate, but formatter configuration must match these rules.
 
-Install `requirements-dev.txt` into the project environment. Run `python -m ruff check src/backend tests` and `python -m ruff format --check src/backend tests` with that environment's Python, from the repository root. Apply formatting with `python -m ruff format src/backend tests` before committing. Ruff is pinned to 0.11.13 in both the development requirements and `pyproject.toml`; update both together. A different global formatter must not silently change repository formatting.
+Install `requirements-dev.txt` into the project environment. Run `python -m ruff check src/backend src/scripts tests` and `python -m ruff format --check src/backend src/scripts tests` with that environment's Python, from the repository root. Apply formatting with `python -m ruff format src/backend src/scripts tests` before committing. Ruff is pinned to 0.11.13 in both the development requirements and `pyproject.toml`; update both together. A different global formatter must not silently change repository formatting.
 
 ## 4. Comments and documentation
 
@@ -179,7 +179,7 @@ Never commit:
 - tokens
 - private keys
 - generated runtime data
-- personal JSON demonstrations and archived local recordings
+- unapproved personal JSON demonstrations and archived local recordings
 - Python virtual environments
 - `node_modules`
 - IDE-specific state that is not intentionally shared
@@ -188,6 +188,8 @@ Never commit:
 - temporary simulation output
 
 The root `.gitignore` is the default repository policy. Add a nested `.gitignore` only when a service has unique generated files that are clearer to manage locally.
+
+Build 04 explicitly approves the three captures listed in `evidence/manifest.json` and representative native simulator outputs for public submission. This narrow evidence exception does not permit publishing other personal/runtime data. Preserve raw bytes, verify checksums and label provenance honestly. Full evaluation traces stay in ignored local exports.
 
 Branch names, commit messages, and pull request descriptions must describe the project change. Do not add tool attribution, generated-by notices, or automatic co-author trailers. Commit and push only when explicitly requested.
 
@@ -217,6 +219,8 @@ Tests should be:
 A bug fix should include a regression test when practical.
 
 Drawing physics tests verify all six synthetic fixtures, real pen-tip ink, stroke style/pressure, pen-up gaps, tracking and bidirectional shape thresholds, encoded-video agreement with actual rendering and a second reachable paper pose. Optional local personal replays preserve raw bytes. Fixtures are not personally collected challenge evidence. Physical stylus pressure remains a manual gate. Run service physics, root outage/physics and browser execution serially. Communication failure must not trigger automatic robot-command retry.
+
+The public Build 04 comparison reuses the three approved captures and fixed manifest poses. Extract each skill once, preserve unsuccessful baseline outcomes and record both geometric proximity and physical contact. Compare only the declared compensation settings; do not tune poses or acceptance limits after seeing results. Keep numerical thread limits equal across methods. A clean source snapshot must prepare the approved inputs without private data.
 
 Do not make a unit test depend on the full Docker stack unless the behavior is genuinely integration-level.
 
@@ -497,15 +501,15 @@ Architecture changes happen deliberately. Implementation must not silently redef
 
 ## 22. Build and implementation handoff
 
-Drawing Build 03 implementation is authorized. The active architecture is `architecture.md`; `dev_plans/build-03.md` records evidence and manual gates.
+Drawing Build 03 and submission Build 04 implementation are authorized. The active architecture is `architecture.md`; their build plans record executed evidence and external gates.
 
 - Configuration owns non-secret tunable defaults; environment files own deployment values. Validate both service boundaries and finite numerical values.
 - `contracts/demonstration.schema.json` and `contracts/skill.schema.json` strictly separate immutable raw input from robot-independent skill. Keep actual robot traces independent.
 - Mark checks complete only after execution. Synthetic fixtures, actual simulation and physical Surface Pen acceptance are separate evidence categories.
 - Lifecycle scripts delegate to `src/scripts/lifecycle.sh`, preserve demonstrations/runs and never overwrite local settings.
 - Linux containers are the runtime target; use Git Bash on Windows or working Bash on Linux. Do not claim native PowerShell lifecycle support.
-- Keep personal demonstration data out of Git. Do not restore the removed video pick-and-place archive into the active tree.
-- Active docs are README, Drawing Architecture, Development Rules and Build 03. Do not proliferate Markdown.
+- Keep unapproved personal demonstration data out of Git. Do not restore the removed video pick-and-place archive into the active tree.
+- Active docs are README, Drawing Architecture, Development Rules, Build 03 and Build 04. Do not proliferate Markdown.
 - No commit or push without explicit authorization. Archival tracked renames use `git mv` as requested.
 
 Implement incrementally through strict input, processing, real Panda drawing and measured ink before final UI polish. Quantitative failure must remain visible; never render desired input as simulated output or claim manual hardware validation from generated fixtures.

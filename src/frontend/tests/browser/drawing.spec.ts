@@ -85,6 +85,7 @@ test('pointer drawing, undo, clear and responsive workspace', async ({ page }, t
   await page.getByLabel('Brush color').fill('#3173ba');
   await page.getByLabel('Brush size', { exact: true }).fill('8');
   await expect(canvas).toBeVisible();
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   let box = (await canvas.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.3);
   await page.mouse.down();
@@ -106,12 +107,13 @@ test('pointer drawing, undo, clear and responsive workspace', async ({ page }, t
   await page.mouse.up();
   await page.getByRole('button', { name: 'Undo last stroke' }).click();
   await expect(page.getByText('0 strokes', { exact: true })).toBeVisible();
-  await canvas.scrollIntoViewIfNeeded();
+  await canvas.evaluate((element) => element.scrollIntoView({ block: 'center' }));
   box = (await canvas.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.3);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5, { steps: 8 });
   await page.mouse.up();
+  await expect(page.getByText('1 stroke', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Clear drawing', exact: true }).click();
   await expect(page.getByText('0 strokes', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -129,6 +131,9 @@ test('captured drawing saves and executes with trace, video and history', async 
     'One representative browser physics execution; root suite covers every fixture.',
   );
   test.setTimeout(240000);
+  const historyButton = page
+    .getByRole('navigation', { name: 'Views' })
+    .getByRole('button', { name: 'History', exact: true });
   await page.goto('/');
   await page.getByRole('button', { name: 'Workspace', exact: true }).click();
   await expect(page.getByText('Simulation ready', { exact: true })).toBeVisible({ timeout: 30000 });
@@ -237,13 +242,13 @@ test('captured drawing saves and executes with trace, video and history', async 
     path: '../../data/runs/drawing-result-desktop.png',
     fullPage: true,
   });
-  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await historyButton.click();
   const row = page.locator(`[data-run-id="${runId}"]`);
   await expect(row).toBeVisible();
   await row.locator('.run-open').click();
   await expect(video).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run on shifted paper' })).toBeEnabled();
-  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await historyButton.click();
   await page.screenshot({ path: '../../data/runs/history-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   await row.getByRole('button', { name: /Delete .* from history/ }).click();
@@ -275,7 +280,7 @@ test('captured drawing saves and executes with trace, video and history', async 
   await expect(dialog).not.toBeVisible();
   await expect(row).toHaveCount(0);
   await page.reload();
-  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await historyButton.click();
   await expect(row).toHaveCount(0);
   expect((await page.request.get(`/api/demonstrations/${run.demonstration_id}`)).ok()).toBe(true);
   expect((await page.request.get(`/api/runs/${runId}/artifacts/trace.json`)).ok()).toBe(true);

@@ -10,5 +10,7 @@
 **/.env
 **/*.env.local
 data
+evidence/examples
+evidence/results.json
 src/frontend/dist
 compose.log

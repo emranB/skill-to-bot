@@ -13,5 +13,8 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.l
 COPY contracts /app/contracts
 COPY tests/fixtures /fixtures
 COPY src/backend/simulation /app
+COPY evidence/manifest.json /evidence/manifest.json
+COPY evidence/demonstrations /evidence/demonstrations
+COPY src/scripts/evaluate.py /app/evaluate.py
 EXPOSE 8002
 CMD ["uvicorn", "src.drawing_environment.drawing_environment:app", "--host", "0.0.0.0", "--port", "8002", "--no-access-log"]

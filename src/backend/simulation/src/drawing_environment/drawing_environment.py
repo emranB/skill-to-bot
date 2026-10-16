@@ -41,6 +41,10 @@ def validate_config(config: dict):
             for v in values
         ):
             raise ValueError(f"Invalid simulation setting: {key}.")
+        if key in ("tracking_lead_seconds", "tracking_integral_gain"):
+            if value < 0:
+                raise ValueError(f"Tracking compensation must be nonnegative: {key}.")
+            continue
         if (
             key
             not in ("paper_center", "paper_yaw", "camera_position", "camera_target", "park_offset")

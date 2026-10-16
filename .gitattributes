@@ -1,6 +1,8 @@
 # Purpose: Keep executable scripts and source files portable between Windows and Linux.
 * text=auto
 .gitattributes text eol=lf
+.dockerignore text eol=lf
+Dockerfile text eol=lf
 *.sh text eol=lf
 *.py text eol=lf
 *.json text eol=lf
@@ -10,3 +12,4 @@
 *.css text eol=lf
 *.md text eol=lf whitespace=-blank-at-eol
 *.mp4 binary
+evidence/demonstrations/*.json -text

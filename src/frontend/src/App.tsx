@@ -259,8 +259,9 @@ export default function App() {
               <h1 id="home-title">skill-to-bot</h1>
               <p className="home-tagline">Your strokes. A robot&apos;s next move.</p>
               <p className="home-description">
-                Draw naturally. A simulated Panda follows your strokes on paper, with every movement
-                recorded for you to see.
+                Start with your own handwriting. A simulated Panda follows your strokes and can
+                repeat the same drawing on shifted paper. Watch the actual simulation and see how
+                closely the pen followed your lines.
               </p>
               <div className="actions">
                 <button className="primary" disabled={locked} onClick={newDrawing}>

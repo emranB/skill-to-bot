@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "collection": "The repository owner drew these trajectories directly in the browser using mouse or touch. Raw Pointer Events retain normalized coordinates, relative timestamps and stroke boundaries. No recognition, video extraction or synthetic generation was used for these captures.",
+  "publication_approved_on": "2026-10-16",
+  "limitations": "Three personal drawings, not an egocentric manipulation dataset. Device models and original collection dates were not recorded. Pressure is not calibrated force. Generated test fixtures are separate and are not personal evidence.",
+  "samples": [
+    {
+      "id": "mouse-01",
+      "demonstration_id": "2fb0a84d02e743efba4ced091537732c",
+      "sha256": "f047b2d96b0b65e2811198de29f3411cf9a0681f60cf872dcffd88e7d8b6b164",
+      "pointer_type": "mouse",
+      "strokes": 1,
+      "samples": 1526
+    },
+    {
+      "id": "touch-01",
+      "demonstration_id": "3f11d94fe7d34ae882ce324eb5015d3a",
+      "sha256": "0ab3c7d08a3ec5610b78ce50ea451bd2120f6b821c3e662863b9eafa6db65db9",
+      "pointer_type": "touch",
+      "strokes": 3,
+      "samples": 600
+    },
+    {
+      "id": "touch-02",
+      "demonstration_id": "95ad155fb4b94509a1e55e6770a387b3",
+      "sha256": "46fa510bd67669c35e5b5dd01d4c04dd685e686e38b3b13beec0bf709b937011",
+      "pointer_type": "touch",
+      "strokes": 1,
+      "samples": 358
+    }
+  ],
+  "poses": {
+    "default": { "offset": [0, 0], "yaw": 0 },
+    "shift-positive": { "offset": [0.015, -0.01], "yaw": 0.12 },
+    "shift-negative": { "offset": [-0.015, 0.01], "yaw": -0.12 }
+  },
+  "methods": {
+    "compensated": {},
+    "uncompensated": {
+      "tracking_lead_seconds": 0,
+      "tracking_integral_gain": 0
+    }
+  }
+}

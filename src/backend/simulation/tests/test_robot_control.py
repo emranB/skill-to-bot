@@ -2,10 +2,18 @@
 import json
 
 import numpy as np
+import pytest
 
-from src.drawing_environment.drawing_environment import CONFIG, DrawingEnvironment
+from src.drawing_environment.drawing_environment import CONFIG, DrawingEnvironment, validate_config
 from src.robot_control.robot_control import execute, path_distance
 from src.skill_to_robot.skill_to_robot import robot_plan
+
+
+@pytest.mark.parametrize("setting", ["tracking_lead_seconds", "tracking_integral_gain"])
+def test_compensation_can_be_disabled_but_not_negative(setting):
+    validate_config({**CONFIG, setting: 0})
+    with pytest.raises(ValueError, match="nonnegative"):
+        validate_config({**CONFIG, setting: -1})
 
 
 def test_shape_evaluation_detects_a_missing_loop():

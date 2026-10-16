@@ -1,0 +1,903 @@
+{
+  "version": 1,
+  "started_at": "2026-10-16T03:53:26.079668+00:00",
+  "source_revision": "fe743b44940cf917aa806cb7fcd0678966dbc7e2",
+  "source_tree_dirty": "true",
+  "prepared": {
+    "manifest": {
+      "version": 1,
+      "collection": "The repository owner drew these trajectories directly in the browser using mouse or touch. Raw Pointer Events retain normalized coordinates, relative timestamps and stroke boundaries. No recognition, video extraction or synthetic generation was used for these captures.",
+      "publication_approved_on": "2026-10-16",
+      "limitations": "Three personal drawings, not an egocentric manipulation dataset. Device models and original collection dates were not recorded. Pressure is not calibrated force. Generated test fixtures are separate and are not personal evidence.",
+      "samples": [
+        {
+          "id": "mouse-01",
+          "demonstration_id": "2fb0a84d02e743efba4ced091537732c",
+          "sha256": "f047b2d96b0b65e2811198de29f3411cf9a0681f60cf872dcffd88e7d8b6b164",
+          "pointer_type": "mouse",
+          "strokes": 1,
+          "samples": 1526
+        },
+        {
+          "id": "touch-01",
+          "demonstration_id": "3f11d94fe7d34ae882ce324eb5015d3a",
+          "sha256": "0ab3c7d08a3ec5610b78ce50ea451bd2120f6b821c3e662863b9eafa6db65db9",
+          "pointer_type": "touch",
+          "strokes": 3,
+          "samples": 600
+        },
+        {
+          "id": "touch-02",
+          "demonstration_id": "95ad155fb4b94509a1e55e6770a387b3",
+          "sha256": "46fa510bd67669c35e5b5dd01d4c04dd685e686e38b3b13beec0bf709b937011",
+          "pointer_type": "touch",
+          "strokes": 1,
+          "samples": 358
+        }
+      ],
+      "poses": {
+        "default": {
+          "offset": [
+            0,
+            0
+          ],
+          "yaw": 0
+        },
+        "shift-positive": {
+          "offset": [
+            0.015,
+            -0.01
+          ],
+          "yaw": 0.12
+        },
+        "shift-negative": {
+          "offset": [
+            -0.015,
+            0.01
+          ],
+          "yaw": -0.12
+        }
+      },
+      "methods": {
+        "compensated": {},
+        "uncompensated": {
+          "tracking_lead_seconds": 0,
+          "tracking_integral_gain": 0
+        }
+      }
+    },
+    "manifest_sha256": "64817f36dffb8b68f9bf4126bf7c2c4ab294f907a3274debfaac07ded7b43c80",
+    "processing_config": {
+      "request_timeout": 10,
+      "health_timeout": 2,
+      "simulation_timeout": 600,
+      "poll_seconds": 0.5,
+      "poll_attempts": 3,
+      "max_body_bytes": 3000000,
+      "max_raw_points": 10000,
+      "max_skill_points": 6000,
+      "duplicate_tolerance": 0.0001,
+      "simplification_tolerance": 0.0003,
+      "pressure_tolerance": 0.03,
+      "max_point_gap": 0.004
+    },
+    "processing_code_sha256": "c89f4b15d6f5159883234cfd9d82d9b27e365e756a00088295851ccb2645eb02",
+    "contracts_sha256": {
+      "demonstration.schema.json": "e038d3c4db79b13d2b34fba7699c6424fde21421b5009b2f950dd9bd013b671d",
+      "skill.schema.json": "7d8dce9467ba3b630e66bb1f77b0323f3009a61452b70af59deb6556cff19e41"
+    },
+    "skill_sha256": {
+      "mouse-01": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+      "touch-01": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+      "touch-02": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62"
+    }
+  },
+  "simulation_config": {
+    "paper_width": 0.18,
+    "paper_height": 0.12,
+    "paper_margin": 0.01,
+    "paper_center": [
+      0,
+      0,
+      0.802
+    ],
+    "paper_yaw": 0,
+    "table_height": 0.8,
+    "pen_length": 0.08,
+    "pen_tip_radius": 0.0015,
+    "pen_up_height": 0.035,
+    "park_offset": [
+      0,
+      0.15,
+      0.12
+    ],
+    "contact_tolerance": 0.0015,
+    "contact_depth": 0.0003,
+    "drawing_speed": 0.018,
+    "travel_speed": 0.08,
+    "max_cartesian_step": 0.0003,
+    "approach_tolerance": 0.0007,
+    "tracking_tolerance": 0.00045,
+    "tracking_lead_seconds": 0.06,
+    "tracking_integral_gain": 5,
+    "tracking_max_offset": 0.003,
+    "drawing_tolerance": 0.001,
+    "max_path_error": 0.002,
+    "shape_tolerance": 0.0008,
+    "min_visible_paper": 0.05,
+    "min_contact_coverage": 0.95,
+    "controller_kp": 300,
+    "control_freq": 40,
+    "phase_timeout": 10,
+    "execution_timeout": 540,
+    "max_skill_points": 6000,
+    "default_color": "#202124",
+    "default_brush_size": 0.006,
+    "default_pressure": 0.5,
+    "pressure_tolerance": 0.03,
+    "max_ink_points": 6000,
+    "ink_spacing": 0.0003,
+    "video_fps": 10,
+    "width": 800,
+    "height": 608,
+    "camera_position": [
+      0.04,
+      -0.3,
+      1.05
+    ],
+    "camera_target": [
+      0,
+      0,
+      0.82
+    ],
+    "camera_fov": 32
+  },
+  "evaluation_code_sha256": "3300e804ca1a54107161926d3dc2d815101611f6a36e762d26ae1ebfd6d1cee1",
+  "simulation_code_sha256": {
+    "src/drawing_environment/drawing_environment.py": "58cc79a94a7fd5214393f4f9cc3080ca7318e73a676b70921555d278eee4ac36",
+    "src/robot_control/robot_control.py": "bbb69bac39499df9c518516246dd5826592c9a367a2655c0e354c8a2fc034ab5",
+    "src/skill_to_robot/skill_to_robot.py": "3ed9f7deb64553827f71d9070a9d9355d837b71985e3330022d6aea420803318"
+  },
+  "runtime": {
+    "python": "3.11.17",
+    "robosuite": "1.4.1",
+    "mujoco": "2.3.7",
+    "numpy": "1.26.4",
+    "imageio": "2.37.0",
+    "thread_limits": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1"
+    }
+  },
+  "cases": [
+    {
+      "sample": "mouse-01",
+      "method": "compensated",
+      "pose": "default",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.0003462562434724548,
+        "p95_path_error_m": 0.0004855944068304414,
+        "max_path_error_m": 0.0006126323639756589,
+        "max_shape_error_m": 0.00047612158561572446,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.40619307832422585,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 957,
+        "execution_duration_s": 58.20000000002516,
+        "wall_duration_s": 123.9819554820001,
+        "steps": 2425,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.2184128289473684,
+          "ink_pixels": 1012,
+          "visible_ink_marks": 812
+        }
+      },
+      "checks": {
+        "measured_ink_points": 957,
+        "frames": 593,
+        "final_frame_mae": 0.9846299342105264,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "4d41d209b512862b508d12c76f28d3580e3a5f81fff57f40a1534260ec595e08",
+        "simulation-result.json": "6e20aa087e5e946de42aa1bcc198d27ad7867aaf0b06165b1b10c515733fa8e4",
+        "simulation.mp4": "6235b6ec4122039dc5ec9cd406ba20e7116601585265d788c6eac0cf8be69893",
+        "simulator-final.png": "dd6b239c36a4d4f016f594315944f31c125a17398638499b34483f5416c8ae96",
+        "skill.json": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+        "trace.json": "9868dee5925484bfab66e628751072cb3da593d6bc13ab9e085af34dbaaffab5"
+      }
+    },
+    {
+      "sample": "mouse-01",
+      "method": "uncompensated",
+      "pose": "default",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.0005750485056358641,
+        "p95_path_error_m": 0.0006791234051318194,
+        "max_path_error_m": 0.0007567711326243273,
+        "max_shape_error_m": 0.0005141889262514102,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.8267199543248644,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 1129,
+        "execution_duration_s": 341.78400000090386,
+        "wall_duration_s": 475.0418172850002,
+        "steps": 14241,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.2184128289473684,
+          "ink_pixels": 997,
+          "visible_ink_marks": 857
+        }
+      },
+      "checks": {
+        "measured_ink_points": 1129,
+        "frames": 3428,
+        "final_frame_mae": 0.9863500548245614,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "4d41d209b512862b508d12c76f28d3580e3a5f81fff57f40a1534260ec595e08",
+        "simulation-result.json": "3e023dbfa1a1eca4a916da13d7ab0d1804353ab790e320c2c3acbdba8bac8531",
+        "simulation.mp4": "5b9d6042eda912f42c6739a4b896e8fd74bc96af21eef4e297980bb52f3ddd8a",
+        "simulator-final.png": "4238061b7670746c78fb0fd23c05d57a2ab9d773a8a13375cbd94884a67d1595",
+        "skill.json": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+        "trace.json": "859f35244320c8e28219eb4767fa43eda26c3e89e5f8a5c51123305ba8d9d9da"
+      }
+    },
+    {
+      "sample": "mouse-01",
+      "method": "compensated",
+      "pose": "shift-positive",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.00034599309324354185,
+        "p95_path_error_m": 0.000482577483568794,
+        "max_path_error_m": 0.0006085417505451877,
+        "max_shape_error_m": 0.00047482952648919877,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.4170464904284412,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 958,
+        "execution_duration_s": 58.20000000002516,
+        "wall_duration_s": 83.00062578100005,
+        "steps": 2425,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.23514802631578946,
+          "ink_pixels": 1081,
+          "visible_ink_marks": 833
+        }
+      },
+      "checks": {
+        "measured_ink_points": 958,
+        "frames": 593,
+        "final_frame_mae": 0.9639288651315789,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "f2c65fa9b47f541a666b9d7794df8507ef13b77dc4648dd91def0df4d0cf608f",
+        "simulation-result.json": "22089c7305b4d6c17a3acef4ab06891487273d9905e83a200467a5856494d066",
+        "simulation.mp4": "bd8a6e5bd73c848a72b2f9135a889080f6be3461b92d4f14de2630242ccf6a02",
+        "simulator-final.png": "bed6587ba06b8a37323e660bf786d06f3cd888f12cef46a4ae66d379e06a31cf",
+        "skill.json": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+        "trace.json": "7922c29f872ae54d809349e2be8e7de65995ba18b809e58540b1fe610dcfcf2f"
+      }
+    },
+    {
+      "sample": "mouse-01",
+      "method": "uncompensated",
+      "pose": "shift-positive",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.0005789953073972297,
+        "p95_path_error_m": 0.0006776171738906589,
+        "max_path_error_m": 0.0007553616482840725,
+        "max_shape_error_m": 0.0005190417512518482,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.7667161961367014,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 1131,
+        "execution_duration_s": 263.97600000053234,
+        "wall_duration_s": 373.7981734660002,
+        "steps": 10999,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.23514802631578946,
+          "ink_pixels": 1079,
+          "visible_ink_marks": 906
+        }
+      },
+      "checks": {
+        "measured_ink_points": 1131,
+        "frames": 2650,
+        "final_frame_mae": 0.9644202302631579,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "f2c65fa9b47f541a666b9d7794df8507ef13b77dc4648dd91def0df4d0cf608f",
+        "simulation-result.json": "104f43b6a35ea2393327ea9e48b9d4d8746fd2cf822284349684fa3ac1fb61cc",
+        "simulation.mp4": "421487ecce718dba12a58d0bdbb6e84c8a301f101b01f9434e958c572377eab7",
+        "simulator-final.png": "9575b9df822fdffb6b4593c3f577bd967320a7b05a8d977507810b2032688cc9",
+        "skill.json": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+        "trace.json": "b04585a9f2a312cb601e161cb97af92ea4a8d1cc674eae76e6990bbc8dd365a9"
+      }
+    },
+    {
+      "sample": "mouse-01",
+      "method": "compensated",
+      "pose": "shift-negative",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.00034813723010022825,
+        "p95_path_error_m": 0.0004870537136075727,
+        "max_path_error_m": 0.0006368553436495732,
+        "max_shape_error_m": 0.00046491616144427587,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.41018644838562984,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 957,
+        "execution_duration_s": 58.27200000002525,
+        "wall_duration_s": 78.45017962899965,
+        "steps": 2428,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.20329769736842104,
+          "ink_pixels": 927,
+          "visible_ink_marks": 774
+        }
+      },
+      "checks": {
+        "measured_ink_points": 957,
+        "frames": 593,
+        "final_frame_mae": 1.0006448739035088,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "2b9777556aebb00f35b49177f8851c2184c2c448de8ae05a8fc18f619c4dba73",
+        "simulation-result.json": "4742ca0ccee6cc25caebdfe4228d68024b68edb77afd4d7afc10a0dae83afced",
+        "simulation.mp4": "dc1ccb88b9b0225ea5c97f4f99ec436b2c80638bf67740e29957f47d5ad389ec",
+        "simulator-final.png": "2f4b4b01aedd1c670665cdca98c20abb6ce95d143e33ec5401e5558b47f549fb",
+        "skill.json": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+        "trace.json": "d91ca612f91609ed72d2c0c8be52533d612185d2603fa733ff54d15dc6279c61"
+      }
+    },
+    {
+      "sample": "mouse-01",
+      "method": "uncompensated",
+      "pose": "shift-negative",
+      "result": {
+        "success": false,
+        "error": "Drawing execution exceeded its deadline.",
+        "mean_path_error_m": 0.0005687450673279512,
+        "p95_path_error_m": 0.0006687650948702982,
+        "max_path_error_m": 0.000764994976660257,
+        "max_shape_error_m": null,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.9047619047619048,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 0,
+        "stroke_count": 1,
+        "ink_points": 915,
+        "execution_duration_s": 457.3200000014555,
+        "wall_duration_s": 541.0259694810002,
+        "steps": 19055,
+        "video": "simulation.mp4",
+        "visibility": null
+      },
+      "checks": {
+        "measured_ink_points": 915,
+        "frames": 4574,
+        "final_frame_mae": null,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "2b9777556aebb00f35b49177f8851c2184c2c448de8ae05a8fc18f619c4dba73",
+        "simulation-result.json": "e12ceaf8cdfd98bf3f4aafd9c66febf106138dfdb102187f5f274a31673507ff",
+        "simulation.mp4": "49fdc9a9161b457b356bb2d774e77e931fffefa9e0c7ad69a066239eb1647f39",
+        "skill.json": "cdae132c6825b78e2e3f016eb4ab97647c5036aa02d1f6a724ab89d3a198d113",
+        "trace.json": "3ca023883b46067e9e96d4fff960b9aec04f36d32f3a5c4d52ff45f15028972f"
+      }
+    },
+    {
+      "sample": "touch-01",
+      "method": "compensated",
+      "pose": "default",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.0003489268173395687,
+        "p95_path_error_m": 0.0005252045532841372,
+        "max_path_error_m": 0.0006394826593794402,
+        "max_shape_error_m": 0.00047879889177516815,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.3563851489188086,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 3,
+        "stroke_count": 3,
+        "ink_points": 2294,
+        "execution_duration_s": 128.51999999988556,
+        "wall_duration_s": 248.93262548500024,
+        "steps": 5355,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.2184128289473684,
+          "ink_pixels": 2520,
+          "visible_ink_marks": 1951
+        }
+      },
+      "checks": {
+        "measured_ink_points": 2294,
+        "frames": 1296,
+        "final_frame_mae": 1.0014405153508772,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "e26ac6522e42ec830fbd037cf66a9a64434432f3f402cd7c3dde51df5b14eae7",
+        "simulation-result.json": "efa50896d125800c7912c5664bae44c53c015367bc8b8ed4853d914b082efa37",
+        "simulation.mp4": "54731da33faf0700988d5d77b211c476400bfbf336b09bcd1663bc66a1d5f6e2",
+        "simulator-final.png": "21ce99e3d51345d320c86b0ce72588f60288acb6926a3684da830ceae73114e8",
+        "skill.json": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+        "trace.json": "e588dbf30e56f21d384a6083ea8f1b0115c1ca05ca4632817d99f2d00cad2ede"
+      }
+    },
+    {
+      "sample": "touch-01",
+      "method": "uncompensated",
+      "pose": "default",
+      "result": {
+        "success": false,
+        "error": "Drawing execution exceeded its deadline.",
+        "mean_path_error_m": 0.0005726349097581123,
+        "p95_path_error_m": 0.0006687158430362126,
+        "max_path_error_m": 0.0007720669042299921,
+        "max_shape_error_m": 0.00042243207062757484,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.8996526437668854,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 3,
+        "ink_points": 905,
+        "execution_duration_s": 439.92000000137244,
+        "wall_duration_s": 541.10504756,
+        "steps": 18330,
+        "video": "simulation.mp4",
+        "visibility": null
+      },
+      "checks": {
+        "measured_ink_points": 905,
+        "frames": 4400,
+        "final_frame_mae": null,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "e26ac6522e42ec830fbd037cf66a9a64434432f3f402cd7c3dde51df5b14eae7",
+        "simulation-result.json": "19baee8a517cf1dbee164e16449a4be118594f5dde7eeb7bc685eb1b6bafbb50",
+        "simulation.mp4": "d9fe87f1110a5e3748c116b8a322766fe8b093c30fab1c9045dc74b1a1c9ede5",
+        "skill.json": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+        "trace.json": "3e33b13dbfb4f4b7af6214229b271017a83ae2949ae6b650282ac831ca99a073"
+      }
+    },
+    {
+      "sample": "touch-01",
+      "method": "compensated",
+      "pose": "shift-positive",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.0003488697088688753,
+        "p95_path_error_m": 0.0005270115045927492,
+        "max_path_error_m": 0.000632549891358672,
+        "max_shape_error_m": 0.0005347852313453545,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.35570469798657717,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 3,
+        "stroke_count": 3,
+        "ink_points": 2299,
+        "execution_duration_s": 128.99999999988785,
+        "wall_duration_s": 259.8045646599994,
+        "steps": 5375,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.23514802631578946,
+          "ink_pixels": 2737,
+          "visible_ink_marks": 2004
+        }
+      },
+      "checks": {
+        "measured_ink_points": 2299,
+        "frames": 1300,
+        "final_frame_mae": 0.9799102247807018,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "691df6659c5b8248b87dd706674a6b1cc9afb3e17c7dce68776c2d2dec3b5121",
+        "simulation-result.json": "f58f76ca686c083263e52c5e35da94b1e4fdec1aa504697f225f5235fc2a911b",
+        "simulation.mp4": "ccf729b9ae76b76f29fd6f2deb41e4a75986920a8b66056481ae9acd4c6ac444",
+        "simulator-final.png": "306b103ed14c341a487878575ac745b430cf64711b771c591789937a0cf7164a",
+        "skill.json": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+        "trace.json": "7efa672dac140461ddbd6259610fdee2e39e2b064713c48051e450a0659e27f2"
+      }
+    },
+    {
+      "sample": "touch-01",
+      "method": "uncompensated",
+      "pose": "shift-positive",
+      "result": {
+        "success": false,
+        "error": "Drawing execution exceeded its deadline.",
+        "mean_path_error_m": 0.0005776751439585744,
+        "p95_path_error_m": 0.0006695194960411944,
+        "max_path_error_m": 0.0007769309066657242,
+        "max_shape_error_m": 0.000609968038594063,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.8337883112048641,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 2,
+        "stroke_count": 3,
+        "ink_points": 1232,
+        "execution_duration_s": 394.3200000011547,
+        "wall_duration_s": 541.0564021909995,
+        "steps": 16430,
+        "video": "simulation.mp4",
+        "visibility": null
+      },
+      "checks": {
+        "measured_ink_points": 1232,
+        "frames": 3944,
+        "final_frame_mae": null,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "691df6659c5b8248b87dd706674a6b1cc9afb3e17c7dce68776c2d2dec3b5121",
+        "simulation-result.json": "50361bb554971582179e9ae3f2e0bc9f079cd98fcefa50dcfc76193b7f9026e4",
+        "simulation.mp4": "ca5b402d330fba806371b5baeb7fbe2a14731f6a9ec74aaba1814320ab457e0b",
+        "skill.json": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+        "trace.json": "77559bb4ea97b1f652dd742c659705c2aa9b60bbaf49ea5d0df01aebf32fbe2e"
+      }
+    },
+    {
+      "sample": "touch-01",
+      "method": "compensated",
+      "pose": "shift-negative",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.00034824483926966206,
+        "p95_path_error_m": 0.0005220982308171835,
+        "max_path_error_m": 0.000650027699343324,
+        "max_shape_error_m": 0.0004747972522051218,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.34727606610895734,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 3,
+        "stroke_count": 3,
+        "ink_points": 2295,
+        "execution_duration_s": 128.47199999988533,
+        "wall_duration_s": 250.99356762299976,
+        "steps": 5353,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.20329769736842104,
+          "ink_pixels": 2331,
+          "visible_ink_marks": 1871
+        }
+      },
+      "checks": {
+        "measured_ink_points": 2295,
+        "frames": 1295,
+        "final_frame_mae": 1.0186149945175438,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "9c6632a7fbc2bd9f3eedf585348117975388e5f91a04fc15b874a7d76dbdc81c",
+        "simulation-result.json": "eab4de4aa3a0e8e55f805f6c363c2e06ab8bff43a9c93f03eda4342db244de28",
+        "simulation.mp4": "3b533f5d697e47f77365761979fc555e1c478b56bcbb87ebf9279536c25cde0b",
+        "simulator-final.png": "756821714bcfb25cf6f389f9de004e8029cc382ef7e45ba9f15163210ac91fd4",
+        "skill.json": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+        "trace.json": "da63ecce1f41ff5dbeb921575513d66c4bc88170a3e4cfbeb203d2fd008a00b7"
+      }
+    },
+    {
+      "sample": "touch-01",
+      "method": "uncompensated",
+      "pose": "shift-negative",
+      "result": {
+        "success": false,
+        "error": "Drawing execution exceeded its deadline.",
+        "mean_path_error_m": 0.0005671405302719659,
+        "p95_path_error_m": 0.000665462507320456,
+        "max_path_error_m": 0.0007743272330026824,
+        "max_shape_error_m": 0.0004382605919159209,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.9395126663804207,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 3,
+        "ink_points": 565,
+        "execution_duration_s": 451.80000000142917,
+        "wall_duration_s": 541.0605247000003,
+        "steps": 18825,
+        "video": "simulation.mp4",
+        "visibility": null
+      },
+      "checks": {
+        "measured_ink_points": 565,
+        "frames": 4519,
+        "final_frame_mae": null,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "9c6632a7fbc2bd9f3eedf585348117975388e5f91a04fc15b874a7d76dbdc81c",
+        "simulation-result.json": "23415b414db00df33e2adbaa05fc02d829656a7e0a900b07dcdb313ba399f4b0",
+        "simulation.mp4": "658b78a6e6fbd56a88f32b52b689bb4b68863aeaa73b67b025ce4581e01518cc",
+        "skill.json": "98f31071ec1bc0903179fa1debb5bff430ea12525b39acdca91184f349a8d6c3",
+        "trace.json": "0a9333efe6c8006fd95ee7bb40f0df1ea99e800443b67090fe8db080dc2424ba"
+      }
+    },
+    {
+      "sample": "touch-02",
+      "method": "compensated",
+      "pose": "default",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.00035083084831634995,
+        "p95_path_error_m": 0.0005299141684295817,
+        "max_path_error_m": 0.0006855420225831937,
+        "max_shape_error_m": 0.00048560686939735795,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.36895770392749244,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 1229,
+        "execution_duration_s": 69.04800000002048,
+        "wall_duration_s": 102.38268555600007,
+        "steps": 2877,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.2184128289473684,
+          "ink_pixels": 3467,
+          "visible_ink_marks": 1173
+        }
+      },
+      "checks": {
+        "measured_ink_points": 1229,
+        "frames": 701,
+        "final_frame_mae": 0.9998739035087719,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "32b85d584871d4a02730e3f0d69e6a50a9d2a6c3e48fcc395d65cdffc90cc40b",
+        "simulation-result.json": "de1dbd821e0adec8b0f621067766c90741f7c001e7c6afaf114d51f1e69dbe4a",
+        "simulation.mp4": "e1f776ad5f3ed622c91f3a7f2ad98e6840e29f734e2578073ff85fd22e8c85ce",
+        "simulator-final.png": "3d33800e1e5442c437723be61a460f334fa775536eda35a1059816bb77f6b058",
+        "skill.json": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62",
+        "trace.json": "7e8d2af59e2aa4dd7c2621b7e38e785616956ebb2d46e0905581c745d197a46c"
+      }
+    },
+    {
+      "sample": "touch-02",
+      "method": "uncompensated",
+      "pose": "default",
+      "result": {
+        "success": false,
+        "error": "Drawing execution exceeded its deadline.",
+        "mean_path_error_m": 0.0005716991195668168,
+        "p95_path_error_m": 0.0006591535754543622,
+        "max_path_error_m": 0.0007758197984010309,
+        "max_shape_error_m": null,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.8825158872413231,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 0,
+        "stroke_count": 1,
+        "ink_points": 1049,
+        "execution_duration_s": 444.21600000139296,
+        "wall_duration_s": 541.0607298819996,
+        "steps": 18509,
+        "video": "simulation.mp4",
+        "visibility": null
+      },
+      "checks": {
+        "measured_ink_points": 1049,
+        "frames": 4443,
+        "final_frame_mae": null,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "32b85d584871d4a02730e3f0d69e6a50a9d2a6c3e48fcc395d65cdffc90cc40b",
+        "simulation-result.json": "d6b3ef4f7bfe16df4736ca5868c0f69dd47eb6730b5d7e6f9dbb0c591497a843",
+        "simulation.mp4": "c34671b2b72ec37b3a24dc9aae34ee5e7abd1395a342c018075f54270638aed7",
+        "skill.json": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62",
+        "trace.json": "19b8a17bfd801f0b61ebd22873ee2a85e188d1fe47dbcabfa67215fa8d151566"
+      }
+    },
+    {
+      "sample": "touch-02",
+      "method": "compensated",
+      "pose": "shift-positive",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.00035044406263210333,
+        "p95_path_error_m": 0.0005276147123977658,
+        "max_path_error_m": 0.0006774818370061006,
+        "max_shape_error_m": 0.0004815091469142578,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.3737259343148358,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 1230,
+        "execution_duration_s": 69.19200000002014,
+        "wall_duration_s": 96.60022047899929,
+        "steps": 2883,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.23514802631578946,
+          "ink_pixels": 3794,
+          "visible_ink_marks": 1166
+        }
+      },
+      "checks": {
+        "measured_ink_points": 1230,
+        "frames": 702,
+        "final_frame_mae": 0.9825342653508772,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "4ebdb68680105c1e8bdff2ebb571290964571df112cdb7a23282d747aeb7527a",
+        "simulation-result.json": "a8a4e8478f77d3b3f25c0464f034eae45faca109c2da6f5566e4f690201310c7",
+        "simulation.mp4": "b7686a5891140e56fd2dc661886542caea18a7ffa741e765b83c96278c5bb437",
+        "simulator-final.png": "29de5c71fd8f794820dde1840a87cd27b22085f78856722c290887395496ce47",
+        "skill.json": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62",
+        "trace.json": "263620b23dff912ca8470ced9c2458fdcc14418deb59956c0d28154c17db7525"
+      }
+    },
+    {
+      "sample": "touch-02",
+      "method": "uncompensated",
+      "pose": "shift-positive",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.0005774143751043945,
+        "p95_path_error_m": 0.0006656299883619889,
+        "max_path_error_m": 0.0007734938355471476,
+        "max_shape_error_m": 0.0006554454086985503,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.8175331927038094,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 1448,
+        "execution_duration_s": 392.4480000011458,
+        "wall_duration_s": 542.3969567260001,
+        "steps": 16352,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.23514802631578946,
+          "ink_pixels": 3644,
+          "visible_ink_marks": 1326
+        }
+      },
+      "checks": {
+        "measured_ink_points": 1448,
+        "frames": 3935,
+        "final_frame_mae": 0.978813048245614,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "4ebdb68680105c1e8bdff2ebb571290964571df112cdb7a23282d747aeb7527a",
+        "simulation-result.json": "9caba1a96f22a0fcb2bde2a5712e066e77667bcc23dbfeba02fb68072fd7234e",
+        "simulation.mp4": "30dfd4fc399c2ddfadf19efce53e1028325970ae6d03b7d8948aae9e07f3d525",
+        "simulator-final.png": "bae2cd26feb60c94119dcbb758ea3c3c9680fef8ef8ea40af72e79489b0c61e6",
+        "skill.json": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62",
+        "trace.json": "5387dcbc9756417628cb001b4320f6f11fe42054a2a42df840422bd5db7cf57f"
+      }
+    },
+    {
+      "sample": "touch-02",
+      "method": "compensated",
+      "pose": "shift-negative",
+      "result": {
+        "success": true,
+        "error": null,
+        "mean_path_error_m": 0.00035070929116090864,
+        "p95_path_error_m": 0.0005267296224335319,
+        "max_path_error_m": 0.000686947403801129,
+        "max_shape_error_m": 0.00046240771648530595,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.37353497164461247,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 1,
+        "stroke_count": 1,
+        "ink_points": 1228,
+        "execution_duration_s": 68.92800000002076,
+        "wall_duration_s": 105.74311171800036,
+        "steps": 2872,
+        "video": "simulation.mp4",
+        "visibility": {
+          "paper_fraction": 0.20329769736842104,
+          "ink_pixels": 3218,
+          "visible_ink_marks": 1178
+        }
+      },
+      "checks": {
+        "measured_ink_points": 1228,
+        "frames": 700,
+        "final_frame_mae": 1.0161595394736842,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "bbf9c28370bab7c46c9318119b0ddbad0e7a2c7e33a3acb1c300e3f442e96443",
+        "simulation-result.json": "676038faa726fb844f97c66122747a93ad0d6e5e1feea92c1935dfae9f0c0724",
+        "simulation.mp4": "579488a1ec027261a5dfceeaf0987bf88d9be9d3a9e9b7ed3f461674eded7b01",
+        "simulator-final.png": "2eb96378dae1b02a036472b812fcb7952e72881a8e8229d288f9292c556ff434",
+        "skill.json": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62",
+        "trace.json": "5e84eacae94151b6f81124fd1c7ad8f340bb5fd219a0fa03477b2646aa142822"
+      }
+    },
+    {
+      "sample": "touch-02",
+      "method": "uncompensated",
+      "pose": "shift-negative",
+      "result": {
+        "success": false,
+        "error": "Drawing execution exceeded its deadline.",
+        "mean_path_error_m": 0.0005663561694126515,
+        "p95_path_error_m": 0.0006547559512385653,
+        "max_path_error_m": 0.0007828514757805404,
+        "max_shape_error_m": null,
+        "contact_coverage": 1.0,
+        "physical_contact_coverage": 0.9385044359949303,
+        "out_of_paper_samples": 0,
+        "strokes_completed": 0,
+        "stroke_count": 1,
+        "ink_points": 622,
+        "execution_duration_s": 475.7040000015433,
+        "wall_duration_s": 541.0786392680002,
+        "steps": 19821,
+        "video": "simulation.mp4",
+        "visibility": null
+      },
+      "checks": {
+        "measured_ink_points": 622,
+        "frames": 4758,
+        "final_frame_mae": null,
+        "unrecorded_final_ink_points": 0
+      },
+      "artifact_sha256": {
+        "robot-plan.json": "bbf9c28370bab7c46c9318119b0ddbad0e7a2c7e33a3acb1c300e3f442e96443",
+        "simulation-result.json": "a80d41e089fb7a013c6a318e2298bc74de7b66a3a6e1ccd134c4835a0ed9a311",
+        "simulation.mp4": "f5886c03031ae2657b3eb663f3deb9f8193172d3dc8bcf9f1b8dcc7fe52a5cdb",
+        "skill.json": "4963c25a1da87ea9cb89ebfe23bcc804d3da93861adffbb3e74df36cb04c2a62",
+        "trace.json": "8a5154699bddd4d9ec62ce4eb307f5df3263c2cf2441e694204166d7930941cd"
+      }
+    }
+  ],
+  "finished_at": "2026-10-16T05:33:50.309148+00:00",
+  "complete": true
+}
