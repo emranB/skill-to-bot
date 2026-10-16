@@ -1,5 +1,5 @@
-# Purpose: Build and lint the drawing app without running the test suite.
-name: Build and verify
+# Purpose: Lint sources and build frontend and container images.
+name: Build
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash

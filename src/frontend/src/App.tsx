@@ -27,6 +27,19 @@ const views = [
   { id: 'demos', label: 'Demos', icon: Library },
 ] as const;
 
+/** Map simulation readiness into the sticky header status chip. */
+function serviceTone(ready: boolean | null, busy: boolean): string {
+  if (ready === null) return 'connecting';
+  if (!ready) return '';
+  return busy ? 'busy' : 'ready';
+}
+
+function serviceLabel(ready: boolean | null, busy: boolean): string {
+  if (ready === null) return 'Connecting...';
+  if (!ready) return 'Simulation unavailable';
+  return busy ? 'Run in progress' : 'Simulation ready';
+}
+
 export default function App() {
   const [view, setView] = useState<(typeof views)[number]['id']>('home');
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -206,16 +219,10 @@ export default function App() {
         </button>
         <span
           role="status"
-          className={`service ${ready ? (busy ? 'busy' : 'ready') : ready === null ? 'connecting' : ''}`}
+          className={['service', serviceTone(ready, busy)].filter(Boolean).join(' ')}
         >
           <span className="status-dot" />
-          {ready === null
-            ? 'Connecting...'
-            : !ready
-              ? 'Simulation unavailable'
-              : busy
-                ? 'Run in progress'
-                : 'Simulation ready'}
+          {serviceLabel(ready, busy)}
         </span>
         <div className="nav-row">
           <nav aria-label="Views">
