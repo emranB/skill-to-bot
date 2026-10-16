@@ -106,30 +106,38 @@ small {
   color: var(--color-text-secondary);
 }
 .app-header {
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
   padding-inline: max(32px, calc((100% - 1216px) / 2));
   display: grid;
   grid-template-areas: 'brand nav service';
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  min-height: 72px;
+  min-height: 68px;
   gap: 20px;
 }
 .brand {
   grid-area: brand;
   justify-self: start;
   border: 0;
-  padding: 4px 0;
+  padding: 6px 10px 6px 6px;
   gap: 10px;
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  border-radius: var(--radius-lg);
 }
 .brand svg {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border-radius: var(--radius-md);
   color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 .brand:hover:not(:disabled) {
-  background: transparent;
+  background: var(--color-surface-subtle);
 }
 .service,
 .status {
@@ -142,7 +150,13 @@ small {
 .service {
   grid-area: service;
   justify-self: end;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  border-radius: 999px;
+  background: var(--color-surface-yellow);
   color: var(--color-warning);
+  font-weight: 500;
 }
 .status-dot {
   width: 7px;
@@ -150,11 +164,22 @@ small {
   border-radius: 50%;
   background: currentColor;
   flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
 }
 .service.ready,
 .success-text,
 .status.completed {
   color: var(--color-success);
+}
+.service.ready {
+  border-color: color-mix(in srgb, var(--color-success) 28%, var(--color-border));
+  background: var(--color-surface-green);
+}
+.service.busy,
+.service.connecting {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 .status.failed,
 .error-text {
@@ -168,47 +193,61 @@ small {
 }
 .nav-row {
   grid-area: nav;
-  align-self: stretch;
   min-width: 0;
 }
 nav {
   display: flex;
-  gap: 4px;
-  height: 100%;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-subtle);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 nav button {
   position: relative;
   border: 0;
-  border-radius: 0;
+  border-radius: 7px;
   background: transparent;
-  padding: 22px 12px;
+  min-height: 40px;
+  padding: 8px 14px;
   color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
+  box-shadow: none;
 }
-nav button::after {
-  content: '';
-  position: absolute;
-  inset: auto 12px 0;
-  height: 2px;
-  background: var(--color-primary);
-  transform: scaleX(0);
-  transition: transform 180ms ease;
+nav button:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
 }
 nav button[aria-current] {
   color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
 }
-nav button[aria-current]::after,
-nav button:hover:not(:disabled)::after {
-  transform: scaleX(1);
+nav button[aria-current]:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: var(--color-surface);
 }
 .nav-count {
-  background: var(--color-surface-subtle);
-  padding: 0;
-  border-radius: 4px;
-  font-size: 12px;
-  width: 32px;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+nav button[aria-current] .nav-count {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 main {
   max-width: 1200px;
@@ -803,15 +842,19 @@ dialog .dialog-name {
 @media (max-width: 1000px) {
   .app-header {
     grid-template-areas: 'brand service' 'nav nav';
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-    padding-top: 8px;
+    grid-template-columns: 1fr auto;
+    gap: 12px 16px;
+    padding-block: 12px;
   }
   .nav-row {
-    margin-top: 8px;
+    width: 100%;
+  }
+  nav {
+    width: 100%;
   }
   nav button {
-    padding-block: 16px;
+    flex: 1;
+    justify-content: center;
   }
 }
 @media (max-width: 760px) {
@@ -824,25 +867,36 @@ dialog .dialog-name {
   }
   .brand {
     gap: 8px;
-    font-size: 19px;
+    font-size: 16px;
+    padding: 4px 8px 4px 4px;
+  }
+  .brand svg {
+    width: 28px;
+    height: 28px;
+    padding: 5px;
   }
   .service {
-    max-width: 120px;
+    max-width: 132px;
+    min-height: 32px;
+    padding: 0 10px;
     white-space: normal;
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.25;
+    text-align: left;
   }
   nav {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
+    gap: 2px;
+    padding: 3px;
   }
   nav button {
     flex-direction: column;
     gap: 4px;
-    font-size: 12px;
-    padding: 10px 0;
+    font-size: 11px;
+    min-height: 52px;
+    padding: 8px 4px;
     min-width: 0;
-    flex: 1;
   }
   .nav-count {
     display: none;

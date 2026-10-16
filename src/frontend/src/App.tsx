@@ -204,7 +204,10 @@ export default function App() {
           <PenLine size={22} />
           skill-to-bot
         </button>
-        <span role="status" className={`service ${ready ? 'ready' : ''}`}>
+        <span
+          role="status"
+          className={`service ${ready ? (busy ? 'busy' : 'ready') : ready === null ? 'connecting' : ''}`}
+        >
           <span className="status-dot" />
           {ready === null
             ? 'Connecting...'
