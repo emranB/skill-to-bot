@@ -23,8 +23,8 @@ import RunStatus, { type Run } from './RunStatus';
 const views = [
   { id: 'home', label: 'Home', icon: House },
   { id: 'workspace', label: 'Workspace', icon: PenLine },
-  { id: 'history', label: 'Run history', icon: History },
-  { id: 'demos', label: 'Saved demos', icon: Library },
+  { id: 'history', label: 'History', icon: History },
+  { id: 'demos', label: 'Demos', icon: Library },
 ] as const;
 
 export default function App() {
